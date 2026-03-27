@@ -1,10 +1,10 @@
 {
   "name": "aviad-dev-toolkit",
-  "version": "1.0.0",
-  "description": "Development quality toolkit — architecture planning, code quality review, refactoring, cross-session memory, and git shipping workflows",
+  "version": "1.1.0",
+  "description": "Development quality toolkit — architecture planning, code quality review, security review, refactoring, cross-session memory, and git shipping workflows",
   "author": {
     "name": "Aviad Polak"
   },
-  "repository": "https://github.com/AviadP/aviad-dev-toolkit",
+  "repository": "https://github.com/AviadP/my-claude-skills",
   "license": "MIT"
 }

@@ -29,16 +29,32 @@ Invoke this skill after completing a plan for:
 
 Do NOT use this skill during active implementation or for reviewing existing code.
 
+## Entry Gates
+
+Before validation can begin, verify:
+
+1. **Plan exists** — the user must provide a plan to validate (document, conversation,
+   or description). If missing, ask for it.
+2. **Plan has enough detail** — the plan must describe specific files, functions,
+   or components to change. If too vague, ask clarifying questions first.
+3. **Project context available** — read CLAUDE.md / project config to understand
+   project-specific conventions. If no project config exists, proceed with
+   generic best practices only.
+
 ## Validation Workflow
 
 Follow these steps to validate a plan:
 
-1. **Review the Plan**: Read the complete plan to understand the proposed approach
-2. **Apply Validation Criteria**: Systematically check against each validation category below
-3. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
-4. **Suggest Improvements**: Provide specific, actionable recommendations
-5. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
-6. **Present Findings**: Deliver structured feedback with checklist format
+1. **Detect Project Context**: Read CLAUDE.md and scan the codebase to identify
+   the framework, language conventions, and project-specific patterns. Load any
+   matching reference files from `references/` (e.g., `ocs_ci_patterns.md` for
+   OCS-CI projects).
+2. **Review the Plan**: Read the complete plan to understand the proposed approach
+3. **Apply Validation Criteria**: Systematically check against each validation category below
+4. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
+5. **Suggest Improvements**: Provide specific, actionable recommendations
+6. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
+7. **Present Findings**: Deliver structured feedback with checklist format
 
 ## Validation Criteria
 
@@ -51,7 +67,7 @@ Follow these steps to validate a plan:
 
 **Questions to ask:**
 - Can existing factory functions, helpers, or utilities be used?
-- Is this functionality already available in `ocs_ci.helpers` or other modules?
+- Is this functionality already available in shared/helper modules?
 - Would this create code duplication?
 
 **Search strategy:**
@@ -75,28 +91,31 @@ Follow these steps to validate a plan:
 - Is the solution minimal yet maintainable?
 - Does it follow existing patterns in the codebase?
 
-### 3. OCS-CI Framework Conventions
+### 3. Framework & Project Conventions
+
+Auto-detect the project's framework and conventions by reading CLAUDE.md,
+config files, and existing code patterns. Then check the plan against them.
 
 **Check for:**
-- Proper fixture usage for resource management
-- Correct test class inheritance (ManageTest, E2ETest, etc.)
-- Appropriate use of factories vs direct resource creation
-- Cleanup strategy using finalizers vs try/finally
-- Proper marker usage (tier, squad, polarion_id)
+- Adherence to the project's established patterns (test structure, base classes,
+  resource management, naming conventions)
+- Correct use of framework-specific features (fixtures, middleware, hooks,
+  decorators, lifecycle methods)
+- Cleanup and teardown strategy matching the project's convention
+- Proper use of project markers, annotations, or metadata
 
-**Anti-patterns to watch for:**
-- Using `request.node.cls` for class attributes
-- Using globals for sharing data
-- Using `@pytest.mark.usefixtures`
-- Multiple asserts in teardown with actions between them
-- Using `yield` in fixtures
-- Using broad exception handling (`except Exception`)
+**How to detect conventions:**
+- Read CLAUDE.md / project config for explicit rules
+- Grep existing code for base classes, common imports, and patterns
+- Check `references/` for project-specific pattern files (e.g.,
+  `ocs_ci_patterns.md` for OCS-CI projects)
+- Look at existing tests/code for the dominant style
 
 **Questions to ask:**
-- Are resources created via factories for automatic cleanup?
-- Is the test class using the correct base class?
-- Will cleanup happen reliably if tests fail?
-- Are markers complete and correct?
+- Does the plan follow the patterns established in existing code?
+- Are framework features used correctly (not fighting the framework)?
+- Will resource cleanup happen reliably on failure?
+- Are all required metadata/markers/annotations present?
 
 ### 4. Project-Specific Guidelines
 
@@ -158,20 +177,20 @@ Follow these steps to validate a plan:
 - Will tests be deterministic?
 - Are test fixtures manageable?
 
-### 8. UI Test Specific Considerations
+### 8. UI & Integration Considerations
 
-For UI test plans, additionally check:
-- Unnecessary UI interactions that could cause state issues
-- Navigation path assumptions
-- Timing-based fixes masking architectural problems
-- Missing visual verification steps
-- Environment-specific behavior differences
+For plans involving UI, API, or integration work, additionally check:
+- Unnecessary interactions that could cause state or timing issues
+- Assumptions about navigation paths, API response order, or external state
+- Timing-based fixes (sleeps, arbitrary waits) masking architectural problems
+- Missing verification steps between actions
+- Environment-specific behavior differences (dev vs staging vs prod)
 
 **Questions to ask:**
 - Could architectural changes eliminate timing dependencies?
-- Are navigation paths verified, not assumed?
-- Would screenshots help debug failures?
-- Is the test making minimal necessary UI interactions?
+- Are navigation/request paths verified, not assumed?
+- Are wait conditions explicit (wait for element/response) rather than arbitrary sleeps?
+- Is the plan making the minimal necessary interactions to achieve its goal?
 
 ## Output Format
 
@@ -202,8 +221,8 @@ Improvements that would enhance the solution but aren't blocking.
 ### Validation Checklist
 - [ ] Code reusability verified (no duplicate functions)
 - [ ] Architecture follows SOLID principles
-- [ ] OCS-CI conventions followed
-- [ ] Project guidelines adhered to
+- [ ] Framework & project conventions followed
+- [ ] Project guidelines (CLAUDE.md) adhered to
 - [ ] Performance considerations addressed
 - [ ] Assumptions documented and validated
 - [ ] Edge cases handled
@@ -214,22 +233,39 @@ Improvements that would enhance the solution but aren't blocking.
 - Recommendation: [Approve / Revise / Reject]
 - Key changes needed: [top 2-3 most important changes]
 
+## Exit Gates
+
+Before presenting the final report, verify:
+
+1. **All 8 categories evaluated** — every validation category has been checked,
+   even if no issues were found (mark as "No issues")
+2. **Issues are actionable** — each finding has a specific recommendation, not
+   just "this could be better"
+3. **Severity is justified** — Critical issues have clear failure/bug risk,
+   not just style preferences
+
 ## Usage Example
 
 **User provides plan:**
-"I plan to add a UI test for bucket versioning. I'll create a new test class `TestBucketVersioning` in a new file, add helper functions `enable_versioning()` and `check_version_status()` in the test class, and use existing bucket fixtures."
+"I plan to add a caching layer for API responses. I'll create a `CacheManager`
+class with `get()`, `set()`, and `invalidate()` methods, store cache in Redis,
+and add a middleware that checks cache before hitting the database."
 
 **Design validator checks:**
-1. **Reusability**: Search for existing versioning functions
-2. **Architecture**: Helper functions should be in shared module if reusable
-3. **OCS-CI conventions**: Verify fixture usage, test class structure
-4. **UI considerations**: Check for minimal interactions, proper navigation
-5. **Output**: Present findings with severity categories and recommendations
+1. **Reusability**: Search for existing cache utilities in the codebase
+2. **Architecture**: Does CacheManager have single responsibility? Is middleware
+   the right pattern here?
+3. **Framework conventions**: Read CLAUDE.md, check how middleware is used in
+   existing code
+4. **Performance**: TTL strategy? Cache invalidation approach? Memory limits?
+5. **Edge cases**: What happens when Redis is down? Cache stampede?
+6. **Output**: Present findings with severity categories and recommendations
 
 ## References
 
-This skill includes a reference file with common OCS-CI patterns and anti-patterns:
-- `references/ocs_ci_patterns.md` - Detailed examples of correct and incorrect patterns
+Project-specific pattern files can be placed in `references/` to extend
+validation with domain knowledge:
+- `references/ocs_ci_patterns.md` — OCS-CI fixture, factory, and test patterns
 
 ## Troubleshooting
 

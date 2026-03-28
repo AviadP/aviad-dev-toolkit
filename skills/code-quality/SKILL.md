@@ -34,6 +34,18 @@ Launches 5 specialized code quality agents **in parallel** against the current b
 | Post-Dev Cleanup | `code-cleanup-post-dev` | Debug logs, TODO comments, dev artifacts |
 | Best Practices | `code-best-practices-reviewer` | Coupling, cohesion, naming, error handling, CLAUDE.md compliance |
 
+## Severity Levels
+
+Use these 4 levels when classifying findings. All agents and the consolidation
+step must use the same definitions.
+
+| Severity | Definition | Action |
+|----------|-----------|--------|
+| **Critical** | Security vulnerability, data loss risk, crash, race condition, broken functionality | Must fix before merge |
+| **Major** | Logic error, missing validation, performance issue (N+1, unbounded), missing tests for new behavior | Should fix before merge |
+| **Minor** | Style inconsistency, suboptimal but correct code, redundancy, missing docs | Fix in this PR or follow-up |
+| **Nit** | Naming suggestion, alternative approach equally valid, formatting preference | Optional, author's discretion |
+
 ## Instructions
 
 When the user invokes this skill:
@@ -51,6 +63,11 @@ Analyze the code changes on branch `<branch>` compared to `master`.
 [Agent-specific focus area].
 The changes are across these files: [list files].
 Run `git diff master` to see the full diff.
+Classify each finding as: Critical, Major, Minor, or Nit.
+- Critical: security, data loss, crash, race condition
+- Major: logic error, missing validation, performance, missing tests
+- Minor: style, suboptimal but correct, redundancy
+- Nit: naming, formatting, alternative approaches
 ```
 
 For untracked files, mention them explicitly so agents read them directly.
@@ -64,7 +81,7 @@ Wait for all agents using `TaskOutput` with `block: true`. If an agent fails (mo
 Many agents will flag the same issues. Consolidate into a single report:
 
 1. **Deduplicate** — if multiple agents flag the same issue, list it once with all agent sources
-2. **Prioritize** — rank by severity: High > Medium > Low
+2. **Prioritize** — rank by severity: Critical > Major > Minor > Nit
 3. **Categorize**:
    - **Actionable** — issues in code introduced by this branch
    - **Already Good** — positive observations
@@ -78,20 +95,28 @@ Use this format:
 ```markdown
 ## Consolidated Code Quality Report
 
-### Actionable Items
+### Critical (must fix)
+| # | File | Issue | Source |
+|---|------|-------|--------|
+| 1 | file.py:line | Description | Agent1, Agent2 |
 
-| # | Priority | File | Issue | Source |
-|---|----------|------|-------|--------|
-| 1 | High | file.py:line | Description | Agent1, Agent2 |
-| ... | ... | ... | ... | ... |
+### Major (should fix)
+| # | File | Issue | Source |
+|---|------|-------|--------|
+| 2 | file.py:line | Description | Agent1 |
 
-### Already Good (positive notes)
+### Minor (nice to fix)
+| # | File | Issue | Source |
+|---|------|-------|--------|
+| 3 | file.py:line | Description | Agent2 |
+
+### Nit (optional)
+- file.py:line — Description (Source)
+
+### Already Good
 - [bullet list of things done well]
 
 ### Out of Scope (pre-existing, not from this branch)
-- [bullet list]
-
-### Already Known
 - [bullet list]
 ```
 
@@ -122,17 +147,27 @@ Agent: [Runs git diff master --stat, identifies 6 changed files]
 
        ## Consolidated Code Quality Report
 
-       ### Actionable Items
-       | # | Priority | File | Issue | Source |
-       |---|----------|------|-------|--------|
-       | 1 | High | views.py:2543 | Unused locator `foo_bar` | Dead code, Simplifier |
-       | 2 | Medium | utils.py:88 | Missing type hints | Simplifier, Best practices |
+       ### Critical (must fix)
+       (none)
+
+       ### Major (should fix)
+       | # | File | Issue | Source |
+       |---|------|-------|--------|
+       | 1 | views.py:2543 | Unused locator `foo_bar` — dead code path | Dead code, Simplifier |
+
+       ### Minor (nice to fix)
+       | # | File | Issue | Source |
+       |---|------|-------|--------|
+       | 2 | utils.py:88 | Missing type hints on `parse_config()` | Best practices |
+
+       ### Nit (optional)
+       - utils.py:92 — consider renaming `d` to `config_data` (Simplifier)
 
        ### Already Good
        - Clean abstraction with mapping dict
        - Backward-compatible defaults
 
-       Which items would you like me to fix? I recommend #1 and #2.
+       Which items would you like me to fix? I recommend #1 (dead code is noise for future readers).
 ```
 
 ## Troubleshooting

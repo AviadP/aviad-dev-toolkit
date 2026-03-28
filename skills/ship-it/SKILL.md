@@ -24,16 +24,33 @@ Automates the complete git shipping cycle: create a feature branch, commit chang
 /ship-it <branch-name> "<commit message>" # Explicit commit message
 ```
 
+## Entry Gates
+
+Before the workflow can execute, verify all of the following. If any gate
+fails, report what failed and how to fix it. Do not proceed.
+
+1. **Changes exist** — run `git status` to confirm staged or unstaged changes.
+   If clean, stop: "Nothing to ship."
+2. **Starting branch** — check current branch with `git branch --show-current`.
+   If on `main`, proceed normally (new feature branch will be created).
+   If already on a feature branch, ask: "You're on `<branch>` — ship from
+   here, or switch to main first?"
+3. **No secrets staged** — scan `git status` output for `.env`, `*.key`,
+   `*.pem`, `credentials*` files. If found, warn and exclude them from staging.
+4. **GitHub CLI authenticated** — run `gh auth status`. If not authenticated,
+   stop: "Run `gh auth login` first."
+5. **Git aliases available** — check `git config --get alias.cs` and
+   `git config --get alias.p`. If missing, inform the user and fall back to
+   `git commit -s -m` / `git push`.
+
 ## Workflow
 
 Execute these steps **sequentially** — each depends on the previous:
 
-### Step 1: Preflight Check
+### Step 1: Analyze Changes
 
-1. Run `git status` to verify there are changes to commit (staged or unstaged).
-2. If no changes exist, stop and inform the user.
-3. Run `git diff` and `git diff --cached` to understand what will be committed.
-4. Run `git log --oneline -5` to match commit message style.
+1. Run `git diff` and `git diff --cached` to understand what will be committed.
+2. Run `git log --oneline -5` to match commit message style.
 
 ### Step 2: Create Branch
 
@@ -105,13 +122,29 @@ gh pr merge <pr-number> --merge
 git checkout main && git pull
 ```
 
-### Step 8: Report
+### Step 8: Exit Gates
+
+Before reporting success, verify each outcome:
+
+1. **PR merged** — run `gh pr view <pr-number> --json state --jq .state`
+   and confirm it is `MERGED`. If not, report the actual state.
+2. **Local main updated** — run `git log --oneline -1` on main and confirm
+   HEAD matches the merge commit.
+3. **Feature branch cleaned up** — delete the local branch:
+   `git branch -d <branch-name>`. If it fails (unmerged changes), warn
+   the user instead of force-deleting.
+
+If any gate fails, report what succeeded and what didn't. Do not claim
+"ship complete" unless all gates pass.
+
+### Step 9: Report
 
 Output a summary:
 - Branch name
 - Commit hash
 - PR URL
 - Final main HEAD
+- Gate results (all passed / partial)
 
 ## Examples
 

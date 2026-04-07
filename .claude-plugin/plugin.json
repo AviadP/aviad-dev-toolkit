@@ -1,7 +1,7 @@
 {
   "name": "aviad-dev-toolkit",
-  "version": "1.3.0",
-  "description": "Development quality toolkit — architecture planning, code quality review, security review, implementation verification, refactoring, test planning, cross-session memory, and git shipping workflows",
+  "version": "1.4.0",
+  "description": "Development quality toolkit — architecture planning, code quality review, security review, implementation verification, refactoring, debugging, review response, test planning, cross-session memory, and git shipping workflows",
   "author": {
     "name": "Aviad Polak"
   },

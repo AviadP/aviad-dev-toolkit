@@ -25,6 +25,12 @@ This fills the gap between planning (architect, design-validator) and quality
 (code-quality). Those skills ask "is the plan good?" and "is the code clean?"
 This skill asks: **"did we build what was asked for?"**
 
+## Iron Law
+
+**NO CLAIMS WITHOUT FRESH EVIDENCE.** If you haven't run the verification
+command in this message, you cannot claim it passes. Previous runs, agent
+reports, and "should work" are not evidence.
+
 ## Invocation
 
 ```
@@ -117,6 +123,21 @@ For each criterion, determine PASS or FAIL with evidence:
    -> Depends on whether RFC-strict validation is required
 ```
 
+#### Regression Test Verification (for bug fix criteria)
+
+When a criterion relates to fixing a bug, a passing test alone is insufficient.
+Verify the test actually catches the bug using the red-green cycle:
+
+1. Run the test → must PASS with the fix in place
+2. Revert the fix (`git stash` or comment out the fix)
+3. Run the test again → must FAIL (proves the test catches the bug)
+4. Restore the fix (`git stash pop` or uncomment)
+5. Run the test → must PASS again
+
+If the test passes with the fix reverted, it doesn't actually test the fix.
+Mark the criterion as PARTIAL with a note: "Test exists but does not
+validate the fix — passes with or without the change."
+
 ### Step 4: Score Intent Adherence
 
 Calculate an overall score (0-100) reflecting how well the implementation
@@ -201,6 +222,19 @@ Before declaring verification complete:
 - **Don't add criteria** — verify against what was specified, not what you
   think should have been specified. If you notice missing requirements,
   mention them separately as "observations" outside the checklist
+
+## Red Flags
+
+These thoughts mean you're skipping verification:
+
+| Thought | Reality |
+|---------|---------|
+| "Tests should pass now" | Run them. "Should" is not evidence. |
+| "I'm confident this works" | Confidence ≠ evidence. Run the command. |
+| "The linter passed so it's fine" | Linter ≠ tests ≠ build. Verify each claim separately. |
+| "The agent said it succeeded" | Agents hallucinate. Check the diff yourself. |
+| "I already ran it earlier" | Earlier is stale. Run it fresh. |
+| "It's a small change, no need" | Small changes break things too. Verify. |
 
 ## Examples
 

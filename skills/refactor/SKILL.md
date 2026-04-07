@@ -113,6 +113,12 @@ When the user invokes this skill or asks to refactor code:
    - "3 different usage patterns found"
    - Show examples from real code
 
+   **YAGNI check:**
+   - If a method/class/parameter has zero usages, flag it for removal
+     instead of refactoring — don't improve dead code
+   - If a method has 1-2 usages, consider inlining instead of refactoring
+   - Only invest in refactoring code that is actively used
+
    #### 4. STATE MANAGEMENT ISSUES
    - Mutable instance variables
    - State initialization problems
@@ -196,6 +202,16 @@ Only proceed after user confirms they want solutions.
    - Calculate compatibility % for each fix
    - Mark any breaking changes clearly
    - Suggest deprecation path if needed
+
+   **RULE 4: Architectural catch**
+   - If 3+ Critical/High issues share a root cause (e.g., shared mutable
+     state, tight coupling, wrong abstraction level), STOP designing
+     individual fixes
+   - Flag it: "These issues are symptoms of an architectural problem:
+     [description]. Individual fixes will create new problems. Consider
+     redesigning [component] instead."
+   - Present the architectural alternative alongside individual fixes
+   - Let the user decide: patch symptoms or fix architecture
 
 9. **Create detailed fix plan for each Critical/High issue:**
 
@@ -289,6 +305,19 @@ Only proceed after user confirms they want solutions.
 - Tables for summaries
 - Section dividers (---)
 - No unnecessary superlatives
+
+## Red Flags
+
+These thoughts mean you're shortcutting the process:
+
+| Thought | Reality |
+|---------|---------|
+| "I can see the fix without analyzing" | You'll miss related issues. Analyze first. |
+| "Just this one function, no need to grep" | Usage patterns reveal the real problems. Grep. |
+| "3 fixes failed but the 4th will work" | Stop. 3+ failures = wrong architecture. |
+| "This code is unused but let's improve it anyway" | YAGNI. Remove it instead. |
+| "The fix is small, no need for compatibility check" | Small fixes break callers too. Check. |
+| "Let's skip Phase 1 and go straight to fixing" | Fixing without analysis creates new bugs. |
 
 ## Example Interaction
 

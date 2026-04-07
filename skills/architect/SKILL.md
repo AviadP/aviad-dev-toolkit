@@ -26,7 +26,14 @@ Execute these phases sequentially. Get user approval before advancing to the nex
 ### Phase 1: Requirements Intake
 
 1. Read the user's specification/requirements carefully
-2. Ask adaptive clarifying questions. Start with critical unknowns, ask more as needed during later phases:
+2. **Scope check first** — before asking detailed questions, assess whether this
+   is one project or multiple. If the request describes multiple independent
+   subsystems (e.g., "build a platform with chat, file storage, billing, and
+   analytics"), flag it immediately. Help the user decompose into sub-projects,
+   define their relationships and build order, then architect the first
+   sub-project through the normal flow. Each sub-project gets its own
+   spec → plan → implementation cycle.
+3. Ask adaptive clarifying questions. Start with critical unknowns, ask more as needed during later phases:
 
 **Critical questions (always ask):**
 - What problem does this app solve? Who are the target users?
@@ -47,7 +54,9 @@ Execute these phases sequentially. Get user approval before advancing to the nex
 - SEO requirements? (SSR vs SPA decision)
 - Mobile app planned? (API-first design consideration)
 
-**Do NOT ask all questions at once.** Group into 4-6 per round. Prioritize based on what the user already provided.
+**Ask one question at a time.** Prefer multiple choice when possible — easier
+to answer than open-ended. Prioritize based on what the user already provided.
+Skip questions the user already answered in their initial request.
 
 ### Phase 2: Tech Stack Selection
 
@@ -75,6 +84,12 @@ Execute these phases sequentially. Get user approval before advancing to the nex
 ### Phase 3: Architecture Design (Interactive)
 
 Build the architecture section-by-section. Present each section, get approval, then proceed.
+
+**Design for isolation:** Break the system into units that each have one clear
+purpose, communicate through well-defined interfaces, and can be understood
+and tested independently. For each unit, you should be able to answer: what
+does it do, how do you use it, and what does it depend on? If you can't
+answer these without reading the internals, the boundaries need work.
 
 **Section order:**
 
@@ -107,7 +122,13 @@ Build the architecture section-by-section. Present each section, get approval, t
    - **Implementation Roadmap** — Phased approach (foundation → core features → polish)
    - **Risk Assessment** — Technical risks with mitigation strategies
    - **Decision Log** — All major decisions made during planning with rationale
-5. Save the final document to a location specified by the user (or suggest a sensible default)
+5. **Spec self-review** — before presenting to the user, scan the document for:
+   - Placeholder or TBD sections that were never filled in
+   - Internal contradictions between sections
+   - Ambiguous requirements that could be interpreted two ways
+   - Scope creep beyond what the user asked for (apply YAGNI)
+   Fix any issues inline, then proceed.
+6. Save the final document to a location specified by the user (or suggest a sensible default)
 
 ## Examples
 
@@ -131,6 +152,7 @@ Result: Focused API architecture blueprint with phased migration plan
 
 ## Design Principles to Apply
 
+- **YAGNI ruthlessly** — After completing the design, review it and remove anything the user didn't ask for. Strip features, components, and infrastructure that aren't needed for the stated requirements. A shorter design is a better design.
 - **Start simple, scale when needed** — Recommend the simplest architecture that meets requirements. Warn against premature optimization.
 - **Convention over configuration** — Prefer opinionated frameworks that reduce decision fatigue.
 - **12-Factor App principles** — Config in env vars, stateless processes, port binding, etc.

@@ -1,20 +1,26 @@
 # Aviad Dev Toolkit
 
 Development quality toolkit for Claude Code — architecture planning,
-code quality review, security review, refactoring, cross-session memory, and git shipping.
+bug hunting, code quality review, security review, refactoring, debugging,
+test planning, cross-session memory, and git shipping.
 
 ## Components
 
-### Skills (7)
+### Skills (12)
 | Skill | Description |
 |-------|-------------|
 | architect | Web app architecture blueprint generator |
-| design-validator | Plan validation before implementation |
-| secure-plan | Security vulnerability review for plans and designs |
+| bug-hunt | Multi-agent bug detection with validation and kill gate |
 | code-quality | Parallel multi-agent code quality review |
-| ship-it | Git branch-to-main shipping workflow |
+| debug | Systematic root cause investigation |
+| design-validator | Plan validation before implementation |
 | refactor | Two-phase code analysis and refactoring |
 | remember | Cross-session memory management |
+| review-response | Handle incoming code review feedback |
+| secure-plan | Security vulnerability review for plans and designs |
+| ship-it | Git branch-to-main shipping workflow |
+| test-plan | Structured test plan generation |
+| verify | Post-implementation intent adherence scoring |
 
 ### Agents (5)
 | Agent | Description |

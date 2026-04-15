@@ -58,6 +58,11 @@ Execute these phases sequentially. Get user approval before advancing to the nex
 to answer than open-ended. Prioritize based on what the user already provided.
 Skip questions the user already answered in their initial request.
 
+**Progressive depth, not checklist walking.** Don't march through the question
+lists above top-to-bottom. Start broad ("what are you building and why?"),
+then dig deeper only where the answers reveal complexity or ambiguity. If the
+user's first response makes 5 questions unnecessary, skip them.
+
 ### Phase 2: Tech Stack Selection
 
 1. Ask the user about technology preferences and team experience
@@ -78,8 +83,11 @@ Skip questions the user already answered in their initial request.
 | Best when    |                  |                  |                  |
 ```
 
-5. Give a clear recommendation with rationale. Be opinionated — don't just present options neutrally
-6. Get user approval on the stack before proceeding
+5. Before finalizing your recommendation, apply the bias checks in
+   `references/thinking-models.md` — search for failures and limitations
+   of your top pick, and steel-man the alternatives
+6. Give a clear recommendation with rationale. Be opinionated — don't just present options neutrally
+7. Get user approval on the stack before proceeding
 
 ### Phase 3: Architecture Design (Interactive)
 

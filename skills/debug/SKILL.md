@@ -156,6 +156,9 @@ These thoughts mean you're skipping investigation:
 - **Don't confuse mechanism with cause** — "a TimeoutError was raised" is the
   mechanism. "The database connection pool was exhausted because connections
   weren't being returned" is the cause.
+- **Structured reasoning at decision points** — when forming hypotheses,
+  choosing between explanations, or pivoting after a failed attempt,
+  consult `references/thinking-models.md` for reasoning protocols.
 
 ## Examples
 

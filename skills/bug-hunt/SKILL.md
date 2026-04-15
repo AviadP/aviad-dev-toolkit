@@ -106,7 +106,9 @@ Validator/Simulator:
 
 1. Read `references/validator-simulator-prompt.md`
 2. Replace `[paste all findings from Phase 1]` with the collected findings
-3. Launch the agent and wait for results
+3. For borderline findings where the kill/keep decision isn't clear-cut,
+   the Validator should consult `references/thinking-models.md`
+4. Launch the agent and wait for results
 
 ### Phase 3: Consolidation
 

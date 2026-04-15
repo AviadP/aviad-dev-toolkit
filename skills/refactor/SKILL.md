@@ -150,7 +150,11 @@ When the user invokes this skill or asks to refactor code:
    - Undocumented behavior
    - Missing examples
 
-4. **Create summary table:**
+4. **Calibrate findings:**
+   Before assigning final severities, consult `references/thinking-models.md`
+   to verify each finding's severity reflects actual impact and scope.
+
+5. **Create summary table:**
    ```
    | Category | Critical | High | Medium | Low | Total |
    |----------|----------|------|--------|-----|-------|
@@ -159,14 +163,14 @@ When the user invokes this skill or asks to refactor code:
    | TOTAL | X | X | X | X | XX |
    ```
 
-5. **Present findings to user:**
+6. **Present findings to user:**
    - Use clear markdown formatting
    - Include line numbers for all issues
    - Show code examples
    - Use emojis for severity: 🔴 Critical, 🟠 High, 🟡 Medium, 🟢 Low
    - End with: "I've identified XX issues. Would you like me to proceed with designing solutions for Critical and High severity issues, or would you like to discuss these findings first?"
 
-6. **STOP and wait for user response**
+7. **STOP and wait for user response**
    - Do NOT proceed to Phase 2 until user confirms
    - Listen to user comments/concerns
    - Adjust analysis if user provides additional context
@@ -175,7 +179,7 @@ When the user invokes this skill or asks to refactor code:
 
 Only proceed after user confirms they want solutions.
 
-7. **Research modern best practices:**
+8. **Research modern best practices:**
 
    Use Task tool with subagent_type=Plan to research:
    - Modern libraries solving similar problems (search web for 2023-2025)
@@ -186,7 +190,7 @@ Only proceed after user confirms they want solutions.
 
    **Important:** DO NOT copy code from other libraries, only learn patterns
 
-8. **Design fixes following these rules:**
+9. **Design fixes following these rules:**
 
    **RULE 1: DO NOT BREAK API**
    - All existing calls must continue working
@@ -213,7 +217,7 @@ Only proceed after user confirms they want solutions.
    - Present the architectural alternative alongside individual fixes
    - Let the user decide: patch symptoms or fix architecture
 
-9. **Create detailed fix plan for each Critical/High issue:**
+10. **Create detailed fix plan for each Critical/High issue:**
 
    For each fix, provide:
    ```markdown
@@ -237,37 +241,37 @@ Only proceed after user confirms they want solutions.
    - **Q#:** [Specific question for user]
    ```
 
-10. **Create Overlaps & Conflicts Matrix:**
+11. **Create Overlaps & Conflicts Matrix:**
     ```markdown
     | Fix | Overlaps With | Conflicts With | Priority |
     |-----|--------------|----------------|----------|
     | ... | ... | ... | ... |
     ```
 
-11. **Identify synergy groups:**
+12. **Identify synergy groups:**
     - Group fixes that should be implemented together
     - Note implementation order
     - Estimate LOC changes
 
-12. **Present user decision points:**
+13. **Present user decision points:**
     - List all questions that need user input
     - Provide recommendations
     - Explain trade-offs
 
-13. **Show implementation plan:**
+14. **Show implementation plan:**
     - Phase 1: [No conflicts]
     - Phase 2: [Synergistic changes]
     - Phase 3: [Documentation]
     - Estimated effort
 
-14. **Provide code example:**
+15. **Provide code example:**
     ```python
     # Show "before and after" usage
     # Demonstrate backward compatibility
     # Show new features in action
     ```
 
-15. **Create final checklist** (per CLAUDE.md):
+16. **Create final checklist** (per CLAUDE.md):
     ```
     ## Checklist of Changes
     - [ ] File: path/to/file.py, Function: function_name, Line: 123

@@ -49,12 +49,19 @@ Follow these steps to validate a plan:
    the framework, language conventions, and project-specific patterns. Load any
    matching reference files from `references/` (e.g., `ocs_ci_patterns.md` for
    OCS-CI projects).
-2. **Review the Plan**: Read the complete plan to understand the proposed approach
-3. **Apply Validation Criteria**: Systematically check against each validation category below
-4. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
-5. **Suggest Improvements**: Provide specific, actionable recommendations
-6. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
-7. **Present Findings**: Deliver structured feedback with checklist format
+2. **Extract the Goal**: Before checking categories, identify what the plan is
+   supposed to achieve. Extract from the plan, architect blueprint, or user
+   conversation:
+   - The outcome (what should be true when implementation is done)
+   - Key success criteria (2-5 observable behaviors or deliverables)
+   - Keep these visible throughout validation — every category check should
+     ask "does this serve the goal?" not just "is this well-designed?"
+3. **Review the Plan**: Read the complete plan to understand the proposed approach
+4. **Apply Validation Criteria**: Systematically check against each validation category below
+5. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
+6. **Suggest Improvements**: Provide specific, actionable recommendations
+7. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
+8. **Present Findings**: Deliver structured feedback with checklist format
 
 ## Validation Criteria
 
@@ -83,6 +90,17 @@ Follow these steps to validate a plan:
 - Appropriate abstraction levels
 - Violation of DRY (Don't Repeat Yourself)
 - Over-engineering or over-complication
+- **Artifact wiring** — planned artifacts must connect to each other, not
+  exist in isolation. If the plan creates a component AND an API route, some
+  task must wire them together (fetch call, import, event handler)
+
+**Wiring checks:**
+- Component → API: does a task mention the fetch/request call?
+- API → Database: does a task mention the query/ORM call?
+- Form → Handler: does a task mention the onSubmit/action implementation?
+- State → Render: does a task mention displaying the state?
+- If two artifacts are planned but no task connects them, flag it:
+  "Plan creates [X] and [Y] but no task wires them together"
 
 **Questions to ask:**
 - Does each component have a single, clear responsibility?
@@ -90,6 +108,7 @@ Follow these steps to validate a plan:
 - Is related functionality grouped together (high cohesion)?
 - Is the solution minimal yet maintainable?
 - Does it follow existing patterns in the codebase?
+- Are planned artifacts connected, or will they be created in isolation?
 
 ### 3. Framework & Project Conventions
 
@@ -192,6 +211,38 @@ For plans involving UI, API, or integration work, additionally check:
 - Are wait conditions explicit (wait for element/response) rather than arbitrary sleeps?
 - Is the plan making the minimal necessary interactions to achieve its goal?
 
+### 9. Scope Reduction Detection
+
+Plans sometimes silently downgrade requirements — the plan "looks complete"
+because it mentions the requirement, but the proposed implementation delivers
+less than what was specified.
+
+**Scan plan text for reduction language:**
+- "v1", "simplified version", "basic version", "minimal version"
+- "static for now", "hardcoded", "placeholder", "stub"
+- "will be wired later", "future enhancement", "dynamic in future"
+- "skip for now", "out of scope for this iteration"
+- "too complex", "non-trivial" (when used to justify omission)
+
+**For each match, cross-reference with the original requirement:**
+- Does the plan deliver what the requirement actually says, or a reduced version?
+- Did the user explicitly approve a phased approach, or did the plan invent one?
+
+**Severity:** Always Critical. Scope reduction means the user's requirement
+will not be delivered as specified. If the plan can't fit the full requirement,
+it should propose splitting — not silently simplifying.
+
+**Example:**
+- Requirement: "Dashboard shows calculated costs from pricing table"
+- Plan says: "Display static cost labels (dynamic pricing is future enhancement)"
+- Issue: Plan reduces the requirement from calculated/dynamic to static/hardcoded
+  without user approval
+
+**Questions to ask:**
+- Does every planned feature match the depth of the original requirement?
+- Are there "v1/v2" splits the user never asked for?
+- Does the plan defer any part of a requirement to a later phase without flagging it?
+
 ## Output Format
 
 Present validation findings in this structure:
@@ -220,13 +271,14 @@ Improvements that would enhance the solution but aren't blocking.
 
 ### Validation Checklist
 - [ ] Code reusability verified (no duplicate functions)
-- [ ] Architecture follows SOLID principles
+- [ ] Architecture follows SOLID principles and artifacts are wired
 - [ ] Framework & project conventions followed
 - [ ] Project guidelines (CLAUDE.md) adhered to
 - [ ] Performance considerations addressed
 - [ ] Assumptions documented and validated
 - [ ] Edge cases handled
 - [ ] Testing strategy sound
+- [ ] No silent scope reduction (plan delivers full requirements)
 
 ### Summary
 - Total issues found: [count by severity]

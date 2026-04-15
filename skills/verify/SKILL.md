@@ -222,6 +222,9 @@ Before declaring verification complete:
 - **Don't add criteria** — verify against what was specified, not what you
   think should have been specified. If you notice missing requirements,
   mention them separately as "observations" outside the checklist
+- **Adversarial pass after assessment** — after your initial PASS/FAIL
+  assessment (Step 3), apply the models in `references/thinking-models.md`
+  to actively seek false PASSes, stub implementations, and confirmation bias
 
 ## Red Flags
 

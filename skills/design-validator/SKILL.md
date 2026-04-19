@@ -5,8 +5,9 @@ description: >
   weak spots, wrong assumptions, inefficient ideas, missing considerations, and
   opportunities to reuse existing code. Use when user says "validate my plan",
   "review my design", "check my approach", "is this plan solid", or after
-  completing any planning phase before implementation. Do NOT use during active
-  implementation or for reviewing existing code.
+  completing any planning phase before implementation. Supports --deep flag
+  for parallel multi-agent validation on high-stakes plans. Do NOT use during
+  active implementation or for reviewing existing code.
 metadata:
   author: Aviad Polak
   version: 1.0.0
@@ -28,6 +29,13 @@ Invoke this skill after completing a plan for:
 - Test design
 
 Do NOT use this skill during active implementation or for reviewing existing code.
+
+## Invocation
+
+```
+/design-validator                 # Single-pass validation (default)
+/design-validator --deep          # Parallel multi-agent validation
+```
 
 ## Entry Gates
 
@@ -57,11 +65,69 @@ Follow these steps to validate a plan:
    - Keep these visible throughout validation — every category check should
      ask "does this serve the goal?" not just "is this well-designed?"
 3. **Review the Plan**: Read the complete plan to understand the proposed approach
-4. **Apply Validation Criteria**: Systematically check against each validation category below
-5. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
-6. **Suggest Improvements**: Provide specific, actionable recommendations
-7. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
-8. **Present Findings**: Deliver structured feedback with checklist format
+4. **Cross-Check Referenced Files**: Scan the plan for file paths, function names,
+   API schemas, config references, or claims about existing code. For each reference:
+   - Read the referenced file and verify the plan's claims match reality
+   - Note contradictions (e.g., plan says "extend UserSchema" but the schema
+     doesn't exist, or has a different structure than assumed)
+   - Note stale references (file was moved, function was renamed)
+   - Skip this step if the plan references no existing files
+   Build a short list of contradictions found — feed these into the validation
+   categories as Critical issues.
+5. **Apply Validation Criteria**: Systematically check against each validation category below
+6. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
+7. **Suggest Improvements**: Provide specific, actionable recommendations
+8. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
+9. **Present Findings**: Deliver structured feedback with checklist format
+
+## Deep Mode
+
+When invoked with `--deep` or when the user asks for thorough/deep validation,
+run steps 1-4 of the normal workflow first (context, goal, plan review,
+cross-check), then replace steps 5-9 with parallel multi-agent validation.
+
+### When to use
+
+- Plans touching 5+ files or 3+ system components
+- Architecture changes or new subsystem designs
+- Plans where a missed issue is expensive (migrations, API contracts, auth flows)
+- When the user explicitly asks for deeper review
+
+### Agent split
+
+Launch 3 agents in parallel using the Agent tool. Each gets the full plan text,
+the context brief from step 4, and the goal from step 2. Each reviews
+independently — they never see each other's output.
+
+| Agent | Focus | Categories |
+|-------|-------|------------|
+| Structure & Reuse | Is this well-designed and does it fit the codebase? | 1 (Reusability), 2 (Architecture), 3 (Conventions) |
+| Robustness & Risk | What will break when this hits reality? | 5 (Performance), 6 (Edge Cases), 7 (Testing), 8 (UI/Integration) |
+| Intent & Scope | Does this deliver what was asked for? | 4 (Guidelines), 9 (Scope Reduction), + cross-check contradictions |
+
+Each agent prompt must include:
+- The plan text in full
+- The context brief (contradictions found in step 4)
+- The goal and success criteria (from step 2)
+- The relevant validation category sections from this skill (paste them —
+  the agent has no access to this document)
+- Instructions to classify findings as Critical, Important, or Minor
+- Instructions to be adversarial — find what's wrong, not what's right
+
+### Consolidation
+
+After all agents return:
+
+1. **Deduplicate** — merge findings flagged by multiple agents, note agreement
+2. **Resolve conflicts** — if agents disagree, note both positions
+3. **Cross-cutting check** — after reading all reports, look for contradictions
+   between agents that none of them could see individually:
+   - Agent A says X is fine, but Agent B's finding implies X is broken
+   - Two agents make incompatible assumptions about the same component
+   - A finding from one agent invalidates a "no issues" from another
+   Add any cross-cutting issues as new findings with severity justification.
+4. **Prioritize** — Critical > Important > Minor
+5. Present using the same Output Format as the normal workflow
 
 ## Validation Criteria
 
@@ -289,7 +355,7 @@ Improvements that would enhance the solution but aren't blocking.
 
 Before presenting the final report, verify:
 
-1. **All 8 categories evaluated** — every validation category has been checked,
+1. **All 9 categories evaluated** — every validation category has been checked,
    even if no issues were found (mark as "No issues")
 2. **Issues are actionable** — each finding has a specific recommendation, not
    just "this could be better"

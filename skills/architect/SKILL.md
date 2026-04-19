@@ -26,42 +26,23 @@ Execute these phases sequentially. Get user approval before advancing to the nex
 ### Phase 1: Requirements Intake
 
 1. Read the user's specification/requirements carefully
-2. **Scope check first** — before asking detailed questions, assess whether this
-   is one project or multiple. If the request describes multiple independent
-   subsystems (e.g., "build a platform with chat, file storage, billing, and
-   analytics"), flag it immediately. Help the user decompose into sub-projects,
-   define their relationships and build order, then architect the first
-   sub-project through the normal flow. Each sub-project gets its own
-   spec → plan → implementation cycle.
-3. Ask adaptive clarifying questions. Start with critical unknowns, ask more as needed during later phases:
-
-**Critical questions (always ask):**
-- What problem does this app solve? Who are the target users?
-- Expected scale: concurrent users, data volume, growth projections?
-- Team composition: size, tech experience, existing skills?
-- Timeline and budget constraints?
-- Any technology mandates or restrictions?
-- Compliance requirements? (GDPR, HIPAA, SOC 2, PCI DSS)
-- Is this greenfield or integrating with existing systems?
-
-**Contextual questions (ask when relevant):**
-- Real-time features needed? (chat, notifications, live updates)
-- File upload/media processing requirements?
-- Multi-tenancy needed?
-- Internationalization (i18n) requirements?
-- Offline support needed?
-- Third-party integrations? (payment, email, analytics)
-- SEO requirements? (SSR vs SPA decision)
-- Mobile app planned? (API-first design consideration)
-
-**Ask one question at a time.** Prefer multiple choice when possible — easier
-to answer than open-ended. Prioritize based on what the user already provided.
-Skip questions the user already answered in their initial request.
-
-**Progressive depth, not checklist walking.** Don't march through the question
-lists above top-to-bottom. Start broad ("what are you building and why?"),
-then dig deeper only where the answers reveal complexity or ambiguity. If the
-user's first response makes 5 questions unnecessary, skip them.
+2. **Check for existing requirements doc** — if the user ran `/discover` first
+   or provides a requirements document, read it and use it as the foundation.
+   Confirm you've understood the key points, ask only architecture-specific
+   clarifications (e.g., "your requirements mention real-time collaboration —
+   do you have a latency target in mind?"), then proceed to Phase 2.
+3. **If no requirements doc exists**, do lightweight requirements gathering:
+   - **Scope check first** — is this one project or multiple independent
+     subsystems? If multiple, help decompose into sub-projects and architect
+     the first one. Each sub-project gets its own spec → plan → implementation cycle.
+   - Ask adaptive clarifying questions focused on what's needed for
+     architecture decisions: scale expectations, team size and skills,
+     technology mandates, compliance requirements, greenfield vs. existing systems.
+   - **Ask one question at a time.** Prefer multiple choice. Skip questions
+     the user already answered. Start broad, dig deeper only where answers
+     reveal complexity.
+   - For thorough product-level requirements gathering, suggest running
+     `/discover` first.
 
 ### Phase 2: Tech Stack Selection
 

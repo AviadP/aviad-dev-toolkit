@@ -1,16 +1,17 @@
 ---
 name: review-pr
 description: >
-  Review a GitHub pull request for bugs, design issues, and error handling
-  problems. Supports two modes: quick (single-pass, no agents) for simple PRs
-  and deep (parallel hunters + kill-gate validation) for complex PRs. Clones
-  PR to /tmp for isolated review. Use when user says "review PR", "review
-  pull request", "check this PR", "code review", or provides a PR URL/number.
-  Do NOT use for reviewing local unstaged changes (use code-quality for that)
-  or for security-focused review (use secure-code-reviewer for that).
+  Review a GitHub pull request for bugs, design issues, error handling problems,
+  and security vulnerabilities. Validates PR purpose (title, description, issue
+  linkage) before code review. Supports two modes: quick (single-pass, no agents)
+  for simple PRs and deep (parallel hunters + kill-gate validation with simulation)
+  for complex PRs. Clones PR to /tmp for isolated review. Use when user says
+  "review PR", "review pull request", "check this PR", "code review", or provides
+  a PR URL/number. Do NOT use for reviewing local unstaged changes (use
+  code-quality for that).
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # PR Review
@@ -26,60 +27,39 @@ Extract the PR identifier from the user's argument:
 - If a number (e.g., `1234`): use the current directory's repo context
 - If no argument provided: ask the user for the PR URL or number
 
-### 1.2 Clone and Gather Context
+### 1.2 Run Setup Script
 
-Run these commands to set up an isolated review workspace:
+Run the setup script at `scripts/setup.sh` (relative to this skill) with the PR identifier from step 1.1:
 
 ```bash
-# Resolve repo info from the PR
-REPO=$(gh pr view <PR_NUMBER> --json headRepository --jq '.headRepository.owner.login + "/" + .headRepository.name')
-DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef -q .defaultBranchRef.name)
-
-# Fetch PR metadata
-gh pr view <PR_NUMBER> --repo "$REPO" --json title,body,labels,files,additions,deletions,changedFiles
-
-# Clone to isolated workspace
-WORK_DIR="/tmp/pr-review-${REPO##*/}-<PR_NUMBER>"
-git clone --depth=100 "https://github.com/${REPO}.git" "$WORK_DIR" 2>/dev/null
-cd "$WORK_DIR"
-gh pr checkout <PR_NUMBER> --repo "$REPO"
-
-# Compute diff against base branch
-git diff "${DEFAULT_BRANCH}...HEAD" > /tmp/pr-review-diff.txt
-git diff "${DEFAULT_BRANCH}...HEAD" --stat > /tmp/pr-review-stat.txt
+bash "<skill-dir>/scripts/setup.sh" "<PR_INPUT>"
 ```
 
-### 1.3 Load Project-Specific Context
+The script handles: cloning the repo, checking out the PR branch, computing the diff, loading project-specific context (review rules, CLAUDE.md), and running purpose validation checks. All results are written to `/tmp/pr-review-context.md`.
 
-Check if the cloned repo has review customization files. Load them if they exist:
+### 1.3 Read Context and Display Summary
 
-1. **Review rules** — check `$WORK_DIR/.claude/review-rules.md` then `$WORK_DIR/review-rules.md`. If found, read it. These rules define BLOCKER-level violations specific to this project.
-2. **Project conventions** — check `$WORK_DIR/.claude/CLAUDE.md`. If found, read it to understand project-specific coding conventions, patterns, and standards.
-3. If neither exists, proceed without them — the skill works with defaults.
+Read `/tmp/pr-review-context.md` and display the PR Metadata section to the user.
 
-### 1.4 Display PR Summary
+Check the **Purpose Validation** section. If the severity is not PASS, include the finding in the final report under its severity tier with source: **Purpose Validation**. Always continue to code review regardless of purpose findings.
 
-Show the user a brief summary before proceeding:
+**Purpose validation severity reference:**
 
-```
-PR #<number>: "<title>"
-Repository: <owner/repo>
-Files: <N> changed (+<additions>, -<deletions>)
-Labels: <labels>
-Review rules: <loaded / not found>
-Project conventions: <loaded / not found>
-```
+| Condition | Severity |
+|-----------|----------|
+| No meaningful title AND no description AND no issue link | 🔴 BLOCKER |
+| Vague title AND no description | 🟠 HIGH |
+| Title is OK but no description | 🟡 MEDIUM |
+| Everything clear | ✅ Pass (no finding) |
 
-If the PR has >1000 lines changed, note: "Large PR — deep mode will use significant tokens."
-
-## Phase 2: Mode Selection
+## Phase 3: Mode Selection
 
 Ask the user which review depth to use (via AskUserQuestion):
 
 - **Quick** — Single-pass review, no sub-agents. Best for: small fixes, docs changes, simple refactors, config updates.
 - **Deep** — Parallel hunter agents + kill-gate validation. Best for: new features, security-sensitive changes, complex refactors, fundamental architecture changes.
 
-## Phase 3a: Quick Mode
+## Phase 4a: Quick Mode
 
 The skill itself performs the review — no agents spawned.
 
@@ -113,6 +93,14 @@ The skill itself performs the review — no agents spawned.
 - Swallowed errors hiding real failures behind defaults
 - Missing `from e` in exception chaining
 
+**Priority 4 — Security:**
+- New endpoints or routes missing auth middleware
+- User input rendered without sanitization, dynamic query construction with string interpolation
+- Hardcoded secrets, API keys, or credentials in source code
+- User-controlled URLs passed to server-side HTTP clients without validation
+- Auth tokens stored insecurely, missing CSRF protection on state-changing endpoints
+- New dependencies with known CVEs or unpinned versions
+
 5. **For each potential finding**, read the actual source file in `$WORK_DIR` (not just the diff) to understand the full context before reporting.
 
 ### Scope Gates
@@ -125,7 +113,7 @@ Apply these gates to every potential finding before including it:
 
 After the review, jump to Phase 5 (Report).
 
-## Phase 3b: Deep Mode
+## Phase 4b: Deep Mode
 
 ### Step 1: Build Shared Context
 
@@ -149,20 +137,22 @@ Read the agent prompts from `references/` directory (relative to this skill):
 - `references/bug-hunter.md`
 - `references/design-reviewer.md`
 - `references/error-checker.md`
+- `references/security-checker.md`
 
 For each prompt, replace `{CONTEXT}` with the shared context block from Step 1.
 
-Launch ALL THREE agents in a SINGLE message using the Agent tool with `run_in_background: true`. This ensures parallel execution:
+Launch ALL FOUR agents in a SINGLE message using the Agent tool with `run_in_background: true`. This ensures parallel execution:
 
 ```
-Agent 1: Bug Hunter       → run_in_background: true
-Agent 2: Design Reviewer  → run_in_background: true
-Agent 3: Error Checker    → run_in_background: true
+Agent 1: Bug Hunter        → run_in_background: true
+Agent 2: Design Reviewer   → run_in_background: true
+Agent 3: Error Checker     → run_in_background: true
+Agent 4: Security Checker  → run_in_background: true
 ```
 
 ### Step 3: Collect Results
 
-Wait for all three agents to complete. Collect their findings into a combined list.
+Wait for all four agents to complete. Collect their findings into a combined list.
 
 If an agent produced no findings, note "No issues found by <agent name>."
 If an agent failed, note the failure and continue with results from the others.
@@ -210,7 +200,7 @@ Format the output identically for both quick and deep modes.
 **Trigger:** <concrete scenario — who does what, with what input>
 **Suggested fix:**
 <code block with fix>
-**Source:** <Bug Hunter / Design Reviewer / Error Checker / Rules Violation>
+**Source:** <Bug Hunter / Design Reviewer / Error Checker / Security Checker / Purpose Validation / Rules Violation>
 
 ---
 
@@ -253,6 +243,5 @@ If a severity tier has zero findings, omit that section entirely.
 After presenting the report, clean up the temporary workspace:
 
 ```bash
-rm -rf "$WORK_DIR"
-rm -f /tmp/pr-review-diff.txt /tmp/pr-review-stat.txt
+bash "<skill-dir>/scripts/setup.sh" --cleanup
 ```

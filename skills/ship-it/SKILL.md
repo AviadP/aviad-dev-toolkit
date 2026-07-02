@@ -8,14 +8,10 @@ description: >
   or just pushing without the full branch-to-main cycle.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 2.0.0
 ---
 
 # Ship It — Branch-to-Main Shipping Workflow
-
-## Overview
-
-Automates the complete git shipping cycle: create a feature branch, commit changes, push to remote, open a PR on GitHub, merge it, and update local main. Respects the project's git aliases (`git cs`, `git p`).
 
 ## Invocation
 
@@ -24,35 +20,23 @@ Automates the complete git shipping cycle: create a feature branch, commit chang
 /ship-it <branch-name> "<commit message>" # Explicit commit message
 ```
 
-## Entry Gates
+## Step 1: Preflight
 
-Before the workflow can execute, verify all of the following. If any gate
-fails, report what failed and how to fix it. Do not proceed.
+Run the preflight script to validate all entry gates and collect context:
 
-1. **Changes exist** — run `git status` to confirm staged or unstaged changes.
-   If clean, stop: "Nothing to ship."
-2. **Starting branch** — check current branch with `git branch --show-current`.
-   If on `main`, proceed normally (new feature branch will be created).
-   If already on a feature branch, ask: "You're on `<branch>` — ship from
-   here, or switch to main first?"
-3. **No secrets staged** — scan `git status` output for `.env`, `*.key`,
-   `*.pem`, `credentials*` files. If found, warn and exclude them from staging.
-4. **GitHub CLI authenticated** — run `gh auth status`. If not authenticated,
-   stop: "Run `gh auth login` first."
-5. **Git aliases available** — check `git config --get alias.cs` and
-   `git config --get alias.p`. If missing, inform the user and fall back to
-   `git commit -s -m` / `git push`.
+```bash
+bash "<skill-dir>/scripts/preflight.sh"
+```
 
-## Workflow
+The script checks: changes exist, current branch, secrets scan, GitHub CLI auth, and git aliases. It also outputs changed files, diff stats, a truncated diff preview, and recent commit style.
 
-Execute these steps **sequentially** — each depends on the previous:
+**If any gate fails**, the script exits with an error message — stop and report it to the user.
 
-### Step 1: Analyze Changes
+**If on a feature branch** (not main), ask: "You're on `<branch>` — ship from here, or switch to main first?"
 
-1. Run `git diff` and `git diff --cached` to understand what will be committed.
-2. Run `git log --oneline -5` to match commit message style.
+**If secrets are detected**, note which files will be excluded from staging.
 
-### Step 2: Create Branch
+## Step 2: Create Branch
 
 ```bash
 git checkout -b <branch-name>
@@ -60,146 +44,65 @@ git checkout -b <branch-name>
 
 If the branch already exists, stop and ask the user how to proceed.
 
-### Step 3: Stage and Commit
+## Step 3: Stage and Commit
 
-1. Stage relevant files by name (avoid `git add -A` or `git add .`).
-2. **Never** stage files that likely contain secrets (`.env`, credentials, tokens).
-3. If no commit message was provided, draft one based on the diff analysis.
-4. Commit using the project alias:
+1. Stage relevant files **by name** — never use `git add -A` or `git add .`. Exclude any files flagged by the secrets scan.
+2. If no commit message was provided, generate one based on the preflight diff preview and recent commit style.
+3. Commit using project alias (or fallback from preflight):
 
 ```bash
-git cs "<commit message>
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+git cs "<commit message>"
 ```
 
-5. If the pre-commit hook fails with a **false positive** (e.g., test files flagged for containing `api_key` as a variable name), inform the user and ask whether to retry with `--no-verify`.
-6. If the hook fails with a **real issue**, fix it and create a NEW commit (never amend).
+If pre-commit hook fails with a false positive (e.g., test variable named `api_key`), inform the user and ask whether to retry with `--no-verify`. If it fails with a real issue, fix it and create a NEW commit — never amend.
 
-### Step 4: Push
+## Step 4: Push
 
 ```bash
 git p
 ```
 
-If this is the first push for the branch and `git p` fails because no upstream is set, use:
+If no upstream is set and push fails, use `git push -u origin <branch-name>`.
 
-```bash
-git push -u origin <branch-name>
-```
-
-Then retry with `git p` for subsequent pushes.
-
-### Step 5: Create PR
-
-Create a pull request using `gh pr create`:
+## Step 5: Create PR
 
 ```bash
 gh pr create --title "<short title>" --body "$(cat <<'EOF'
 ## Summary
-<bullet points describing the changes>
+<bullet points from the actual diff>
 
 ## Test plan
 <checklist of testing steps>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
 
-- Keep the PR title under 70 characters.
-- Derive the summary from the actual diff, not guesses.
+Keep title under 70 characters. Derive content from the actual diff, not guesses.
 
-### Step 6: Merge
+## Step 6: Merge and Update
 
 ```bash
 gh pr merge <pr-number> --merge
-```
-
-### Step 7: Update Local Main
-
-```bash
 git checkout main && git pull
 ```
 
-### Step 8: Exit Gates
+## Step 7: Verify and Clean Up
 
-Before reporting success, verify each outcome:
+Run these checks — if any fail, report what succeeded and what didn't:
 
-1. **PR merged** — run `gh pr view <pr-number> --json state --jq .state`
-   and confirm it is `MERGED`. If not, report the actual state.
-2. **Local main updated** — run `git log --oneline -1` on main and confirm
-   HEAD matches the merge commit.
-3. **Feature branch cleaned up** — delete the local branch:
-   `git branch -d <branch-name>`. If it fails (unmerged changes), warn
-   the user instead of force-deleting.
+1. `gh pr view <pr-number> --json state --jq .state` — confirm `MERGED`
+2. `git log --oneline -1` — confirm HEAD matches the merge commit
+3. `git branch -d <branch-name>` — if it fails (unmerged changes), warn instead of force-deleting
 
-If any gate fails, report what succeeded and what didn't. Do not claim
-"ship complete" unless all gates pass.
+## Step 8: Report
 
-### Step 9: Report
-
-Output a summary:
-- Branch name
-- Commit hash
-- PR URL
-- Final main HEAD
-- Gate results (all passed / partial)
-
-## Examples
-
-### Example 1: Ship a new feature
 ```
-User: /ship-it add-starship-config
-Agent: [Verifies git aliases: git config --get alias.cs, git config --get alias.p]
-       [Runs git status — finds 1 modified file: terminal_cfg/starship.toml]
-       [Creates branch: git checkout -b add-starship-config]
-       [Stages file by name: git add terminal_cfg/starship.toml]
-       [Commits: git cs "Update starship prompt configuration"]
-       [Pushes: git p]
-       [Creates PR with summary derived from diff]
-       [Merges PR]
-       [Updates local main: git checkout main && git pull]
-
-       Ship complete:
-       - Branch: add-starship-config
-       - Commit: a1b2c3d
-       - PR: https://github.com/user/repo/pull/42
-       - Main HEAD: e4f5g6h
+Ship complete:
+- Branch: <branch-name>
+- Commit: <short hash>
+- PR: <PR URL>
+- Main HEAD: <short hash>
+- Gates: all passed / <detail if partial>
 ```
 
-### Example 2: Ship with explicit commit message
-```
-User: /ship-it fix-login-bug "Fix null pointer in auth middleware"
-Agent: [Verifies git aliases exist]
-       [Same flow, uses provided commit message instead of auto-generating]
-```
-
-## Rules
-
-- **Always** use `git cs` instead of `git commit` (project alias).
-- **Always** use `git p` instead of `git push` (project alias).
-- **Never** force push.
-- **Never** amend commits — create new ones if fixes are needed.
-- **Never** stage `.env`, credential files, or secrets.
-- **Never** skip hooks without informing the user and getting approval.
-- Stage files **by name**, not with `-A` or `.`.
-- If any step fails, stop and report the error — don't continue blindly.
-
-## Troubleshooting
-
-Error: Git aliases (cs, p) not found
-Cause: Project aliases not configured on this machine
-Solution: Fall back to `git commit -s -m` and `git push`, or ask the user to set up aliases first
-
-Error: Merge conflicts on PR
-Cause: Main has diverged since branch was created
-Solution: Stop, inform the user, suggest rebasing locally before retrying merge
-
-Error: PR checks failing
-Cause: CI pipeline rejects the changes
-Solution: Stop, show the failing check output, ask the user to fix before retrying merge
-
-Error: GitHub auth failure on gh commands
-Cause: gh CLI not authenticated or token expired
-Solution: Ask the user to run `gh auth login` and retry
+Only report "Ship complete" if all verification gates passed.

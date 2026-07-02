@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__jira-mcp__jira_get",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "Bash(oc get *)",
+      "Bash(oc logs *)",
+      "Bash(oc whoami *)",
+      "Bash(oc describe *)"
+    ]
+  }
+}

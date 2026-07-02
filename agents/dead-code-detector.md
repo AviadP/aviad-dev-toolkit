@@ -27,14 +27,21 @@ When analyzing code, you will:
    - Recognize similar patterns that could be abstracted into a single function
    - Compare function signatures and return types for similarity
 
+3. **Detect Single-User Abstractions**:
+   - Interfaces or base classes with only one concrete implementation — inline until a second exists
+   - Factory functions/classes that produce only one product
+   - Wrapper functions that only delegate to a single call without adding value
+   - Config layers for values that never vary across environments or callers
+   - For each finding, verify by grepping for all implementations/subclasses before flagging
+
 3. **Analysis Methodology**:
    - Start by mapping all function definitions in the given scope
    - Trace all imports and function calls throughout the codebase
    - Use AST analysis when possible for accurate detection
    - Consider both direct and indirect usage (callbacks, decorators, etc.)
 
-4. **Reporting Format**:
-   - Group findings by category: "Unused Functions", "Duplicate Functions", "Similar Functions"
+5. **Reporting Format**:
+   - Group findings by category: "Unused Functions", "Duplicate Functions", "Similar Functions", "Single-User Abstractions"
    - For each finding, provide:
      * Function name and location (file:line)
      * Reason for flagging (never imported, never called, duplicate of X)
@@ -42,14 +49,14 @@ When analyzing code, you will:
      * Suggested action (remove, merge with X, parameterize)
    - Include a summary with counts and potential lines of code that could be removed
 
-5. **Special Considerations**:
+6. **Special Considerations**:
    - Be aware of framework-specific patterns (e.g., pytest fixtures, Django views)
    - Check for functions used via reflection or dynamic dispatch
    - Consider functions that might be entry points or public APIs
    - Flag but don't recommend removing functions with decorators without careful analysis
    - Account for functions that might be used in configuration files or as string references
 
-6. **Quality Assurance**:
+7. **Quality Assurance**:
    - Double-check findings by searching for string references to function names
    - Verify that removing suggested functions won't break the build
    - Prioritize findings by impact and safety of removal

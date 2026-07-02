@@ -168,6 +168,16 @@ After all agents return:
 - If two artifacts are planned but no task connects them, flag it:
   "Plan creates [X] and [Y] but no task wires them together"
 
+**Dependency justification:**
+- If the plan adds a new dependency, check: does stdlib or a native platform
+  feature cover this? If yes, flag as Important.
+- Every new dependency is a future maintenance burden — justify the cost.
+
+**Abstraction justification:**
+- Flag any planned interface with one implementation, factory with one product,
+  or config layer for a value that never changes. These are YAGNI until a second
+  user proves the abstraction.
+
 **Questions to ask:**
 - Does each component have a single, clear responsibility?
 - Are dependencies minimized (low coupling)?
@@ -175,6 +185,8 @@ After all agents return:
 - Is the solution minimal yet maintainable?
 - Does it follow existing patterns in the codebase?
 - Are planned artifacts connected, or will they be created in isolation?
+- Does the plan add dependencies that stdlib or the platform already covers?
+- Does the plan introduce abstractions that have only one consumer?
 
 ### 3. Framework & Project Conventions
 

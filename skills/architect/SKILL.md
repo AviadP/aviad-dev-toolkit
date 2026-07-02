@@ -142,6 +142,7 @@ Result: Focused API architecture blueprint with phased migration plan
 ## Design Principles to Apply
 
 - **YAGNI ruthlessly** — After completing the design, review it and remove anything the user didn't ask for. Strip features, components, and infrastructure that aren't needed for the stated requirements. A shorter design is a better design.
+- **Stdlib and platform first** — Before reaching for a library, check if the standard library or native platform feature covers it. Every dependency is a future maintenance burden — justify the cost.
 - **Start simple, scale when needed** — Recommend the simplest architecture that meets requirements. Warn against premature optimization.
 - **Convention over configuration** — Prefer opinionated frameworks that reduce decision fatigue.
 - **12-Factor App principles** — Config in env vars, stateless processes, port binding, etc.
@@ -157,7 +158,8 @@ Actively warn the user if they're heading toward:
 - Building auth from scratch when managed solutions exist
 - Premature optimization before product-market fit
 - Monorepo without tooling to manage it
-- Over-abstracting for hypothetical future requirements
+- Over-abstracting for hypothetical future requirements (interfaces with one implementation, factories with one product)
+- Adding a dependency for what stdlib or a few lines of code can do
 
 ## References
 

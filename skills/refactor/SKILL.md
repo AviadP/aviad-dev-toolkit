@@ -119,6 +119,13 @@ When the user invokes this skill or asks to refactor code:
    - If a method has 1-2 usages, consider inlining instead of refactoring
    - Only invest in refactoring code that is actively used
 
+   **Stdlib replacement check:**
+   - For each function being refactored, check if stdlib already ships the
+     same functionality — if so, flag for replacement, not refactoring
+   - Check if a native platform feature covers it (DB constraint, CSS feature,
+     built-in browser API) before improving the hand-rolled version
+   - Don't improve what you should delete
+
    #### 4. STATE MANAGEMENT ISSUES
    - Mutable instance variables
    - State initialization problems

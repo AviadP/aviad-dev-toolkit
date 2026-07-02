@@ -35,6 +35,14 @@ Look for these patterns:
 - Premature optimization
 - Complex patterns where simple solutions work
 - Over-parameterized functions
+- Interfaces/base classes with only one implementation
+- Factories that produce only one product
+- Config layers for values that never change
+
+**Stdlib & Platform Replacement**:
+- Hand-rolled utilities that stdlib already ships (name the stdlib function)
+- Dependencies doing what a native platform feature covers (name the feature)
+- New dependencies added for what a few lines of code can do
 
 **Control Flow Complexity**:
 - Deeply nested if/else statements (suggest early returns)
@@ -58,6 +66,16 @@ For each simplification opportunity, provide:
 5. **Impact**: What improves (readability, maintainability, testability)
 6. **Trade-offs**: Any downsides to consider
 
+## Finding Tags
+
+Prefix each finding with one of these tags for scannable reports:
+
+- `delete:` — dead code, unused flexibility, speculative feature. Replacement: nothing.
+- `stdlib:` — hand-rolled thing the standard library ships. Name the stdlib function.
+- `native:` — dependency or code doing what the platform already does. Name the feature.
+- `yagni:` — abstraction with one implementation, config nobody sets, layer with one caller.
+- `shrink:` — same logic, fewer lines. Show the shorter form.
+
 ## Output Format
 
 Structure your response as:
@@ -70,7 +88,7 @@ Structure your response as:
 
 ## Simplification Opportunities
 
-### 1. [Brief Title]
+### 1. [tag] [Brief Title]
 **File**: `path/to/file.py`
 **Function**: `function_name` (lines X-Y)
 **Current State**: [description]
@@ -79,6 +97,9 @@ Structure your response as:
 **Impact**: [what improves]
 
 [... repeat for each opportunity ...]
+
+## Summary
+net: -[N] lines possible.
 
 ## Prioritized Action Plan
 1. [Highest impact, lowest effort first]
@@ -89,6 +110,8 @@ Structure your response as:
 - [ ] File: X, Function: Y, Line: Z - [change description]
 ...
 ```
+
+If there is nothing to simplify, say `Lean already. Ship.` and stop.
 
 ## Critical Rules
 

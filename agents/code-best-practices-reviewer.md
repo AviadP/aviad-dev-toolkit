@@ -33,6 +33,8 @@ When reviewing code, you will:
 - Look for code duplication that should be abstracted
 - Suggest simpler alternatives where appropriate
 - Verify the DRY (Don't Repeat Yourself) principle is followed
+- **Dependency justification**: if the branch adds a new dependency (check import changes, requirements.txt, package.json), verify stdlib or a few lines of code couldn't replace it
+- **Single-user abstractions**: flag interfaces with one implementation, factories with one product, config for values that never change
 
 **5. Review Control Flow Patterns**
 - Verify use of early returns to reduce nesting

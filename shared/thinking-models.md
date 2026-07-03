@@ -1,6 +1,7 @@
-# Thinking Models: PR Review Validation
+# Thinking Models: Finding Validation
 
-Structured reasoning models for the Kill-Gate Validator. Apply when a
+Structured reasoning models for validation agents — bug-hunt's
+Validator/Simulator and review-pr's Kill-Gate Validator. Apply when a
 finding is borderline — partially guarded, complex call chain, or unclear
 reachability. Not for clear-cut kills or obvious validates.
 
@@ -88,6 +89,6 @@ Skip these models when the decision is clear-cut:
 - **Finding clearly passes all 3 gates with High confidence** —
   concrete trigger, no guards, verified behavior. Validate immediately.
 - **Style or quality issue** — naming, formatting, "could be cleaner."
-  Kill immediately — that's not what the kill-gate evaluates.
+  Kill immediately — that's code review's territory, not the kill gate's.
 - **Finding is identical to another already-validated finding** —
   deduplicate, don't re-reason. Credit both source agents.

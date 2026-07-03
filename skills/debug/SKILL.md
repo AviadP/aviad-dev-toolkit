@@ -9,7 +9,7 @@ description: >
   use refactor for that.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Debug — Systematic Root Cause Investigation
@@ -58,7 +58,7 @@ gather evidence) before proposing any fix. If you catch yourself thinking
 
 4. **Check recent changes**
    - `git log --oneline -20` — did something change recently?
-   - `git diff main` — are there uncommitted changes that could cause this?
+   - `git status --short && git diff` — are there uncommitted changes that could cause this?
    - If the code worked before, `git bisect` to find the breaking commit
 
 5. **Gather evidence at boundaries**

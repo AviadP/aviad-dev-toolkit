@@ -8,7 +8,7 @@ description: >
   or just pushing without the full branch-to-main cycle.
 metadata:
   author: Aviad Polak
-  version: 2.0.0
+  version: 2.1.0
 ---
 
 # Ship It — Branch-to-Main Shipping Workflow
@@ -16,6 +16,7 @@ metadata:
 ## Invocation
 
 ```
+/ship-it                                  # Auto-generate branch name + commit message
 /ship-it <branch-name>                    # Auto-generate commit message
 /ship-it <branch-name> "<commit message>" # Explicit commit message
 ```
@@ -28,15 +29,18 @@ Run the preflight script to validate all entry gates and collect context:
 bash "<skill-dir>/scripts/preflight.sh"
 ```
 
-The script checks: changes exist, current branch, secrets scan, GitHub CLI auth, and git aliases. It also outputs changed files, diff stats, a truncated diff preview, and recent commit style.
+The script checks: changes exist, current branch vs the repo's default branch, secrets scan (sensitive filenames + hardcoded credentials in added lines), GitHub CLI auth, and git aliases. It also outputs the default branch name, changed files, diff stats, a truncated diff preview, and recent commit style.
 
 **If any gate fails**, the script exits with an error message — stop and report it to the user.
 
-**If on a feature branch** (not main), ask: "You're on `<branch>` — ship from here, or switch to main first?"
+**If on a feature branch** (not the default branch), ask: "You're on `<branch>` — ship from here, or switch to `<default-branch>` first?"
 
-**If secrets are detected**, note which files will be excluded from staging.
+**If sensitive files are detected**, note which files will be excluded from staging. **If suspicious added lines are flagged**, read them and judge: real credential → stop and tell the user; false positive (test fixture, variable name) → note it and continue.
 
 ## Step 2: Create Branch
+
+If no branch name was provided, generate a short kebab-case name from the
+diff (e.g., `fix-retry-timeout`, `add-scope-script`).
 
 ```bash
 git checkout -b <branch-name>
@@ -83,8 +87,10 @@ Keep title under 70 characters. Derive content from the actual diff, not guesses
 
 ```bash
 gh pr merge <pr-number> --merge
-git checkout main && git pull
+git checkout <default-branch> && git pull
 ```
+
+(`<default-branch>` comes from the preflight output — do not assume `main`.)
 
 ## Step 7: Verify and Clean Up
 
@@ -101,7 +107,7 @@ Ship complete:
 - Branch: <branch-name>
 - Commit: <short hash>
 - PR: <PR URL>
-- Main HEAD: <short hash>
+- <default-branch> HEAD: <short hash>
 - Gates: all passed / <detail if partial>
 ```
 

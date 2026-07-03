@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Prepares PR review workspace and validates PR purpose.
-# Replaces Phase 1.2-1.4 and Phase 2 of the review-pr skill.
+# Handles Phase 1 of the review-pr skill: clone, checkout, diff, project
+# context, purpose validation, and mode recommendation.
 #
 # Usage: setup.sh <PR_NUMBER|PR_URL>
 #        setup.sh --cleanup
@@ -24,7 +25,15 @@ if [[ "$PR_INPUT" =~ github\.com/([^/]+/[^/]+)/pull/([0-9]+) ]]; then
     PR_NUMBER="${BASH_REMATCH[2]}"
 else
     PR_NUMBER="$PR_INPUT"
-    REPO=$(gh pr view "$PR_NUMBER" --json headRepository --jq '.headRepository.owner.login + "/" + .headRepository.name')
+    # Resolve the BASE repo from the PR URL — headRepository would be the
+    # fork on cross-repo PRs, and PR numbers belong to the base repo.
+    RESOLVED_URL=$(gh pr view "$PR_NUMBER" --json url --jq '.url')
+    if [[ "$RESOLVED_URL" =~ github\.com/([^/]+/[^/]+)/pull/ ]]; then
+        REPO="${BASH_REMATCH[1]}"
+    else
+        echo "ERROR: could not resolve repository for PR #${PR_NUMBER}" >&2
+        exit 1
+    fi
 fi
 
 DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef -q .defaultBranchRef.name)
@@ -46,8 +55,11 @@ git clone --depth=100 "https://github.com/${REPO}.git" "$WORK_DIR" 2>/dev/null
 cd "$WORK_DIR"
 gh pr checkout "$PR_NUMBER" --repo "$REPO" 2>/dev/null
 
-# --- Compute diff ---
-git diff "${DEFAULT_BRANCH}...HEAD" > /tmp/pr-review-diff.txt
+# --- Compute diff (deepen if the shallow clone lacks the merge-base) ---
+if ! git diff "${DEFAULT_BRANCH}...HEAD" > /tmp/pr-review-diff.txt 2>/dev/null; then
+    git fetch --deepen=1000 origin "$DEFAULT_BRANCH" 2>/dev/null || true
+    git diff "${DEFAULT_BRANCH}...HEAD" > /tmp/pr-review-diff.txt
+fi
 git diff "${DEFAULT_BRANCH}...HEAD" --stat > /tmp/pr-review-stat.txt
 
 # --- Load project context ---
@@ -63,10 +75,13 @@ done
 
 CONVENTIONS_STATUS="not found"
 PROJECT_CONVENTIONS=""
-if [[ -f ".claude/CLAUDE.md" ]]; then
-    PROJECT_CONVENTIONS=$(<".claude/CLAUDE.md")
-    CONVENTIONS_STATUS="loaded"
-fi
+for conventions_path in "CLAUDE.md" ".claude/CLAUDE.md"; do
+    if [[ -f "$conventions_path" ]]; then
+        PROJECT_CONVENTIONS=$(<"$conventions_path")
+        CONVENTIONS_STATUS="loaded (${conventions_path})"
+        break
+    fi
+done
 
 # --- Purpose validation ---
 TITLE_QUALITY="PASS"
@@ -110,6 +125,13 @@ elif [[ "$DESC_QUALITY" == "FAIL" ]]; then
     PURPOSE_FINDING="No PR description provided."
 fi
 
+# --- Recommended review mode ---
+TOTAL_CHANGES=$((ADDITIONS + DELETIONS))
+RECOMMENDED_MODE="deep"
+if [[ "$TOTAL_CHANGES" -lt 200 && "$CHANGED_FILES" -le 10 ]]; then
+    RECOMMENDED_MODE="quick"
+fi
+
 # --- Generate output ---
 OUTPUT="/tmp/pr-review-context.md"
 {
@@ -143,6 +165,10 @@ OUTPUT="/tmp/pr-review-context.md"
     if [[ -n "$PURPOSE_FINDING" ]]; then
         printf '%s\n' "- **Finding:** ${PURPOSE_FINDING}"
     fi
+
+    printf '\n'
+    printf '%s\n' "## Recommended Mode"
+    printf '%s\n' "${RECOMMENDED_MODE} (${TOTAL_CHANGES} lines changed across ${CHANGED_FILES} files)"
 
     printf '\n'
     printf '%s\n' "## Working Directory"

@@ -8,7 +8,7 @@ description: >
   Do NOT use for simple renames or formatting changes.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Refactor Skill
@@ -27,29 +27,11 @@ Use this skill when you need to:
 
 ## How It Works
 
-### Phase 1: Issue Discovery
-1. User selects/points to code to analyze
-2. Skill performs comprehensive analysis across 8 categories:
-   - Architectural Issues
-   - Edge Cases & Boundary Conditions
-   - Usage Pattern Problems
-   - State Management Issues
-   - Exception Handling Weaknesses
-   - API Design Problems
-   - Performance Issues
-   - Documentation & Usability Issues
-3. Presents findings with severity levels (Critical/High/Medium/Low)
-4. **STOPS and waits for user confirmation/comments**
-
-### Phase 2: Solution Design
-5. After user confirmation, researches modern best practices
-6. Designs fixes for Critical + High severity issues
-7. Identifies overlaps, conflicts, and synergies between fixes
-8. Presents implementation plan with:
-   - Backward compatibility guarantees
-   - User priority decision points
-   - Implementation order
-   - Code examples
+**Phase 1** analyzes the code across 8 categories (detailed in Instructions),
+presents findings by severity, then **STOPS for user confirmation**.
+**Phase 2** researches best practices, designs backward-compatible fixes for
+Critical/High issues with overlap/conflict analysis, and presents an
+implementation plan with user decision points.
 
 ## Instructions
 
@@ -188,7 +170,7 @@ Only proceed after user confirms they want solutions.
 
 8. **Research modern best practices:**
 
-   Use Task tool with subagent_type=Plan to research:
+   Use the Agent tool with subagent_type=Plan to research:
    - Modern libraries solving similar problems (search web for 2023-2025)
    - Industry best practices for each issue type
    - Type hint patterns (Python 3.9+)
@@ -335,77 +317,19 @@ These thoughts mean you're shortcutting the process:
 ```
 User: I want to refactor the TimeoutSampler class
 
-Assistant (Phase 1): I'll analyze the TimeoutSampler class for you. Let me read it and search for usage patterns.
+Agent (Phase 1): [Reads code, greps for usage patterns, analyzes all 8 categories]
+       "I've identified 20 issues: 🔴 3 Critical (exception swallowing,
+       non-reusable iterator, no failure diagnostics), 🟠 6 High, ...
+       Proceed with designing solutions for Critical + High, or discuss first?"
 
-[Reads code, greps for usage, analyzes thoroughly]
-Assistant (Phase 1 Results):
-## TimeoutSampler Analysis Complete
+User: Proceed
 
-I've identified 20 issues across 8 categories:
+Agent (Phase 2): [Researches modern retry patterns via Plan agent]
+       "FIX 1: Exception Swallowing — add optional `reraise` and
+       `on_exception` callback params. Backward compatible: 100%.
+       OVERLAPS: Fixes 1, 3, 8 → implement together (unified callbacks).
+       Decision needed — Q1: callbacks instead of logging? Q2: simple
+       reset() or full reusable iterator?"
 
-🔴 **CRITICAL (3):**
-1. Exception Swallowing - all exceptions caught and logged, never re-raised
-2. Non-Reusable Iterator - cannot reuse instance after timeout
-3. No Failure Diagnostics - no way to tell why timeout occurred
-
-🟠 **HIGH (6):**
-4. No Thread Safety
-5. Confusing Timeout Semantics
-6. Inconsistent API Methods
-... (full analysis)
-
-**I've identified 20 issues. Would you like me to proceed with designing solutions for Critical and High severity issues, or would you like to discuss these findings first?**
-
-User: Yes, proceed with solutions
-
-Assistant (Phase 2): I'll research modern best practices and design fixes.
-
-[Researches retry patterns, modern libraries, best practices]
-
-Assistant (Phase 2 Results):
-## Refactoring Plan for TimeoutSampler
-
-### Fixes for 3 Critical + 6 High Severity Issues
-
-**FIX 1: Exception Swallowing (CRITICAL)**
-Solution: Add optional `reraise` and `on_exception` callback parameters...
-
-**OVERLAPS:** Fixes 1, 3, 8 should be implemented together (unified callback system)
-
-**CONFLICTS:** None
-
-**User Decisions Needed:**
-Q1: Accept reduced logging (use callbacks instead)?
-Q2: Simple reset() method OR full reusable iterator?
-
-[Complete fix plan with backward compatibility analysis]
-
-User: Looks good, implement Fix 1, 3, and 8 together with the callback system
+User: Implement Fix 1, 3, and 8 together with the callback system
 ```
-
-## Testing the Skill
-
-To test this skill, save it and invoke with:
-```
-/refactor
-```
-
-Or Claude will automatically use it when you say:
-```
-I want to refactor [code/class/function]
-```
-
-## Notes
-
-- This skill embodies the methodology used for the TimeoutSampler analysis
-- Two-phase approach ensures user involvement and buy-in
-- Maintains API compatibility as core principle
-- Evidence-based analysis using codebase search
-- Modern research ensures solutions follow industry standards
-- Explicit conflict/overlap analysis prevents implementation issues
-
----
-
-**Skill Version:** 1.0  
-**Created:** 2025-11-04  
-**Compatible with:** Python codebases (adaptable to other languages)

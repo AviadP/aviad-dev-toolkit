@@ -7,8 +7,6 @@ set -euo pipefail
 # Usage: preflight.sh
 # Output: structured report to stdout
 
-GATE_PASS=true
-
 printf '%s\n' "# Ship-It Preflight Report"
 printf '\n'
 
@@ -21,31 +19,46 @@ if [[ -z "$STATUS_OUTPUT" ]]; then
 fi
 printf '%s\n' "## Gate: Changes Exist → PASS"
 
-# --- Gate 2: Current branch ---
+# --- Gate 2: Current branch vs default branch ---
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
-printf '%s\n' "## Gate: Current Branch → ${CURRENT_BRANCH}"
-if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" ]]; then
-    printf '%s\n' "WARNING: On feature branch '${CURRENT_BRANCH}', not main."
+if REF=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null); then
+    DEFAULT_BRANCH="${REF#origin/}"
+elif git show-ref --verify --quiet refs/heads/main; then
+    DEFAULT_BRANCH="main"
+else
+    DEFAULT_BRANCH="master"
+fi
+printf '%s\n' "## Gate: Current Branch → ${CURRENT_BRANCH} (default: ${DEFAULT_BRANCH})"
+if [[ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]]; then
+    printf '%s\n' "WARNING: On feature branch '${CURRENT_BRANCH}', not ${DEFAULT_BRANCH}."
 fi
 
 # --- Gate 3: Secrets scan ---
+# 3a: sensitive filenames
 SECRET_FILES=""
 while IFS= read -r line; do
     file="${line:3}"
     case "$file" in
         .env|.env.*|*.key|*.pem|credentials*|*secret*|*.p12|*.pfx)
-            SECRET_FILES="${SECRET_FILES}${file}\n"
+            SECRET_FILES="${SECRET_FILES}  - ${file}"$'\n'
             ;;
     esac
 done <<< "$STATUS_OUTPUT"
 
-if [[ -n "$SECRET_FILES" ]]; then
+# 3b: hardcoded credentials in added lines (quoted literal 8+ chars)
+SECRET_PATTERN="^\+.*(api[_-]?key|apikey|password|passwd|secret|token)[^=:]{0,3}[:=][[:space:]]*['\"][^'\"]{8,}"
+SECRET_LINES=$( { git diff; git diff --cached; } 2>/dev/null | grep -inE "$SECRET_PATTERN" | head -10 || true)
+
+if [[ -n "$SECRET_FILES" || -n "$SECRET_LINES" ]]; then
     printf '%s\n' "## Gate: Secrets Scan → WARNING"
-    printf '%s\n' "Sensitive files detected (will be excluded from staging):"
-    printf "$SECRET_FILES" | while IFS= read -r f; do
-        [[ -n "$f" ]] && printf '%s\n' "  - $f"
-    done
-    GATE_PASS=false
+    if [[ -n "$SECRET_FILES" ]]; then
+        printf '%s\n' "Sensitive files detected (exclude from staging):"
+        printf '%s' "$SECRET_FILES"
+    fi
+    if [[ -n "$SECRET_LINES" ]]; then
+        printf '%s\n' "Added lines that look like hardcoded credentials (verify before staging):"
+        printf '%s\n' "$SECRET_LINES"
+    fi
 else
     printf '%s\n' "## Gate: Secrets Scan → PASS"
 fi

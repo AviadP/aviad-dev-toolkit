@@ -9,7 +9,7 @@ description: >
   Does NOT write test code — only the plan.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Test Plan Generator
@@ -56,7 +56,8 @@ Goal: Build a deep, grounded understanding of the feature before writing any tes
    - **Documentation**: Check for relevant docs, READMEs, or design documents
      in the repository.
 
-3. **Ask clarification questions** — use AskUserQuestion to resolve ambiguity:
+3. **Ask clarification questions** — use AskUserQuestion (batch 2-4 related
+   questions per round) to resolve ambiguity:
    - Target version/release for the feature
    - Scope: which subsystems to cover (e.g., ReclaimSpace only, or also KeyRotation?)
    - Environment requirements (specific platforms, cluster configs)
@@ -130,6 +131,9 @@ Apply each category below to the feature. For each category, ask:
 ### Phase 4: Structure the Output
 
 Goal: Present the test plan in a scannable, actionable format.
+
+A complete worked example lives in `references/example-test-plan.md` — read
+it if unsure about format, step granularity, or priority assignment.
 
 #### Test Plan Table Format
 

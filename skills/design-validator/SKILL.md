@@ -10,7 +10,7 @@ description: >
   active implementation or for reviewing existing code.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Design Validator
@@ -74,11 +74,29 @@ Follow these steps to validate a plan:
    - Skip this step if the plan references no existing files
    Build a short list of contradictions found — feed these into the validation
    categories as Critical issues.
-5. **Apply Validation Criteria**: Systematically check against each validation category below
+5. **Apply Validation Categories**: Read `references/validation-categories.md`
+   and systematically check the plan against all 9 categories
 6. **Identify Issues**: Document weaknesses, assumptions, and inefficiencies found
 7. **Suggest Improvements**: Provide specific, actionable recommendations
 8. **Categorize by Severity**: Classify issues as Critical, Important, or Minor
 9. **Present Findings**: Deliver structured feedback with checklist format
+
+## Validation Categories
+
+The detailed checklists live in `references/validation-categories.md` — read
+that file when applying them (step 5), or hand its path to agents in deep mode.
+
+| # | Category | Focus |
+|---|----------|-------|
+| 1 | Code Reusability | Does proposed code already exist? Extend instead of duplicate |
+| 2 | Architecture & Design | SRP, coupling/cohesion, artifact wiring, dependency & abstraction justification (YAGNI) |
+| 3 | Framework & Project Conventions | Match existing patterns, correct framework feature use, reliable cleanup |
+| 4 | Project-Specific Guidelines | CLAUDE.md rules: type hints, early returns, specific exceptions |
+| 5 | Performance & Scalability | Batching/caching, N+1, pagination, resource leaks, race-prone timing |
+| 6 | Assumptions & Edge Cases | Environment assumptions, partial failures, input validation, hardcoded values |
+| 7 | Testing Strategy | Testable in isolation, deterministic, manageable fixtures |
+| 8 | UI & Integration | Unverified navigation/state assumptions, arbitrary sleeps, minimal interactions |
+| 9 | Scope Reduction | Silent requirement downgrades ("v1", "hardcoded for now") — always Critical |
 
 ## Deep Mode
 
@@ -109,8 +127,9 @@ Each agent prompt must include:
 - The plan text in full
 - The context brief (contradictions found in step 4)
 - The goal and success criteria (from step 2)
-- The relevant validation category sections from this skill (paste them —
-  the agent has no access to this document)
+- The absolute path of `references/validation-categories.md` (resolve it from
+  this skill's directory) plus which category numbers to apply — the agent
+  reads the file itself; do NOT paste category text into the prompt
 - Instructions to classify findings as Critical, Important, or Minor
 - Instructions to be adversarial — find what's wrong, not what's right
 
@@ -128,198 +147,6 @@ After all agents return:
    Add any cross-cutting issues as new findings with severity justification.
 4. **Prioritize** — Critical > Important > Minor
 5. Present using the same Output Format as the normal workflow
-
-## Validation Criteria
-
-### 1. Code Reusability
-
-**Check for:**
-- Whether proposed new functions/classes already exist in the codebase
-- Opportunities to extend existing utilities instead of creating duplicates
-- Whether helper functions should be in shared modules vs test-specific locations
-
-**Questions to ask:**
-- Can existing factory functions, helpers, or utilities be used?
-- Is this functionality already available in shared/helper modules?
-- Would this create code duplication?
-
-**Search strategy:**
-- Grep for similar function names and patterns
-- Check relevant helper modules for existing implementations
-- Review related test files for reusable patterns
-
-### 2. Architecture and Design Patterns
-
-**Check for:**
-- Proper separation of concerns (single responsibility)
-- Coupling and cohesion issues
-- Appropriate abstraction levels
-- Violation of DRY (Don't Repeat Yourself)
-- Over-engineering or over-complication
-- **Artifact wiring** — planned artifacts must connect to each other, not
-  exist in isolation. If the plan creates a component AND an API route, some
-  task must wire them together (fetch call, import, event handler)
-
-**Wiring checks:**
-- Component → API: does a task mention the fetch/request call?
-- API → Database: does a task mention the query/ORM call?
-- Form → Handler: does a task mention the onSubmit/action implementation?
-- State → Render: does a task mention displaying the state?
-- If two artifacts are planned but no task connects them, flag it:
-  "Plan creates [X] and [Y] but no task wires them together"
-
-**Dependency justification:**
-- If the plan adds a new dependency, check: does stdlib or a native platform
-  feature cover this? If yes, flag as Important.
-- Every new dependency is a future maintenance burden — justify the cost.
-
-**Abstraction justification:**
-- Flag any planned interface with one implementation, factory with one product,
-  or config layer for a value that never changes. These are YAGNI until a second
-  user proves the abstraction.
-
-**Questions to ask:**
-- Does each component have a single, clear responsibility?
-- Are dependencies minimized (low coupling)?
-- Is related functionality grouped together (high cohesion)?
-- Is the solution minimal yet maintainable?
-- Does it follow existing patterns in the codebase?
-- Are planned artifacts connected, or will they be created in isolation?
-- Does the plan add dependencies that stdlib or the platform already covers?
-- Does the plan introduce abstractions that have only one consumer?
-
-### 3. Framework & Project Conventions
-
-Auto-detect the project's framework and conventions by reading CLAUDE.md,
-config files, and existing code patterns. Then check the plan against them.
-
-**Check for:**
-- Adherence to the project's established patterns (test structure, base classes,
-  resource management, naming conventions)
-- Correct use of framework-specific features (fixtures, middleware, hooks,
-  decorators, lifecycle methods)
-- Cleanup and teardown strategy matching the project's convention
-- Proper use of project markers, annotations, or metadata
-
-**How to detect conventions:**
-- Read CLAUDE.md / project config for explicit rules
-- Grep existing code for base classes, common imports, and patterns
-- Check `references/` for project-specific pattern files (e.g.,
-  `ocs_ci_patterns.md` for OCS-CI projects)
-- Look at existing tests/code for the dominant style
-
-**Questions to ask:**
-- Does the plan follow the patterns established in existing code?
-- Are framework features used correctly (not fighting the framework)?
-- Will resource cleanup happen reliably on failure?
-- Are all required metadata/markers/annotations present?
-
-### 4. Project-Specific Guidelines
-
-**Check for:**
-- Following CLAUDE.md guidelines (user's custom instructions)
-- Type hints for new function arguments
-- Early return pattern instead of nested if/else
-- Specific exceptions instead of general Exception
-- Error handling at function beginning
-- Happy path placed last in functions
-
-**Questions to ask:**
-- Do functions use type hints?
-- Is error handling using specific exceptions?
-- Are early returns used for error conditions?
-- Does the plan avoid unnecessary else statements?
-
-### 5. Performance and Scalability
-
-**Check for:**
-- Unnecessary API calls or resource creation
-- Missing pagination for large datasets
-- Inefficient loops or repeated operations
-- Resource cleanup to prevent leaks
-- Timing assumptions that could cause race conditions
-
-**Questions to ask:**
-- Could operations be batched or cached?
-- Will this scale with larger datasets?
-- Are there N+1 query patterns?
-- Could this create resource leaks?
-
-### 6. Assumptions and Edge Cases
-
-**Check for:**
-- Implicit assumptions about environment state
-- Missing error handling for edge cases
-- Assumptions about resource availability
-- Hard-coded values that should be configurable
-- Missing validation of inputs
-
-**Questions to ask:**
-- What happens if resources don't exist?
-- What if operations fail partway through?
-- Are there edge cases not considered?
-- What assumptions are being made?
-
-### 7. Testing Strategy
-
-**Check for:**
-- Whether the approach is testable
-- Missing test scenarios
-- Difficulty in setting up test fixtures
-- Whether tests will be reliable or flaky
-
-**Questions to ask:**
-- Can this be tested in isolation?
-- Are all code paths testable?
-- Will tests be deterministic?
-- Are test fixtures manageable?
-
-### 8. UI & Integration Considerations
-
-For plans involving UI, API, or integration work, additionally check:
-- Unnecessary interactions that could cause state or timing issues
-- Assumptions about navigation paths, API response order, or external state
-- Timing-based fixes (sleeps, arbitrary waits) masking architectural problems
-- Missing verification steps between actions
-- Environment-specific behavior differences (dev vs staging vs prod)
-
-**Questions to ask:**
-- Could architectural changes eliminate timing dependencies?
-- Are navigation/request paths verified, not assumed?
-- Are wait conditions explicit (wait for element/response) rather than arbitrary sleeps?
-- Is the plan making the minimal necessary interactions to achieve its goal?
-
-### 9. Scope Reduction Detection
-
-Plans sometimes silently downgrade requirements — the plan "looks complete"
-because it mentions the requirement, but the proposed implementation delivers
-less than what was specified.
-
-**Scan plan text for reduction language:**
-- "v1", "simplified version", "basic version", "minimal version"
-- "static for now", "hardcoded", "placeholder", "stub"
-- "will be wired later", "future enhancement", "dynamic in future"
-- "skip for now", "out of scope for this iteration"
-- "too complex", "non-trivial" (when used to justify omission)
-
-**For each match, cross-reference with the original requirement:**
-- Does the plan deliver what the requirement actually says, or a reduced version?
-- Did the user explicitly approve a phased approach, or did the plan invent one?
-
-**Severity:** Always Critical. Scope reduction means the user's requirement
-will not be delivered as specified. If the plan can't fit the full requirement,
-it should propose splitting — not silently simplifying.
-
-**Example:**
-- Requirement: "Dashboard shows calculated costs from pricing table"
-- Plan says: "Display static cost labels (dynamic pricing is future enhancement)"
-- Issue: Plan reduces the requirement from calculated/dynamic to static/hardcoded
-  without user approval
-
-**Questions to ask:**
-- Does every planned feature match the depth of the original requirement?
-- Are there "v1/v2" splits the user never asked for?
-- Does the plan defer any part of a requirement to a later phase without flagging it?
 
 ## Output Format
 
@@ -374,28 +201,13 @@ Before presenting the final report, verify:
 3. **Severity is justified** — Critical issues have clear failure/bug risk,
    not just style preferences
 
-## Usage Example
-
-**User provides plan:**
-"I plan to add a caching layer for API responses. I'll create a `CacheManager`
-class with `get()`, `set()`, and `invalidate()` methods, store cache in Redis,
-and add a middleware that checks cache before hitting the database."
-
-**Design validator checks:**
-1. **Reusability**: Search for existing cache utilities in the codebase
-2. **Architecture**: Does CacheManager have single responsibility? Is middleware
-   the right pattern here?
-3. **Framework conventions**: Read CLAUDE.md, check how middleware is used in
-   existing code
-4. **Performance**: TTL strategy? Cache invalidation approach? Memory limits?
-5. **Edge cases**: What happens when Redis is down? Cache stampede?
-6. **Output**: Present findings with severity categories and recommendations
-
 ## References
 
-Project-specific pattern files can be placed in `references/` to extend
-validation with domain knowledge:
-- `references/ocs_ci_patterns.md` — OCS-CI fixture, factory, and test patterns
+- `references/validation-categories.md` — the 9 detailed category checklists
+  (single source of truth for what to check)
+- Project-specific pattern files can be added to `references/` to extend
+  validation with domain knowledge, e.g., `references/ocs_ci_patterns.md` —
+  OCS-CI fixture, factory, and test patterns
 
 ## Troubleshooting
 

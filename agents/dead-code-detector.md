@@ -1,6 +1,7 @@
 ---
 name: dead-code-detector
-description: "Use this agent when you need to identify and analyze dead code, unused functions, or duplicate functionality within a specific scope of a codebase. This includes finding functions that are never imported or called, identifying multiple functions that perform the same or very similar operations, and detecting code that can be safely removed or consolidated. <example>Context: The user wants to clean up their codebase by finding unused code. user: \"Can you check this module for any dead code or duplicate functions?\" assistant: \"I'll use the dead-code-detector agent to analyze the module for unused and duplicate code\" <commentary>Since the user is asking to find dead or duplicate code, use the Task tool to launch the dead-code-detector agent.</commentary></example> <example>Context: After refactoring, the user wants to ensure no orphaned functions remain. user: \"I just finished refactoring the authentication module. Are there any functions that are no longer being used?\" assistant: \"Let me use the dead-code-detector agent to scan for any orphaned functions after your refactoring\" <commentary>The user needs to identify unused functions after refactoring, so use the dead-code-detector agent.</commentary></example>"
+description: "Use this agent when you need to identify and analyze dead code, unused functions, or duplicate functionality within a specific scope of a codebase. This includes finding functions that are never imported or called, identifying multiple functions that perform the same or very similar operations, and detecting code that can be safely removed or consolidated. <example>Context: The user wants to clean up their codebase by finding unused code. user: \"Can you check this module for any dead code or duplicate functions?\" assistant: \"I'll use the dead-code-detector agent to analyze the module for unused and duplicate code\" <commentary>Since the user is asking to find dead or duplicate code, use the Agent tool to launch the dead-code-detector agent.</commentary></example> <example>Context: After refactoring, the user wants to ensure no orphaned functions remain. user: \"I just finished refactoring the authentication module. Are there any functions that are no longer being used?\" assistant: \"Let me use the dead-code-detector agent to scan for any orphaned functions after your refactoring\" <commentary>The user needs to identify unused functions after refactoring, so use the dead-code-detector agent.</commentary></example>"
+tools: Bash, Glob, Grep, LS, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash
 model: inherit
 color: yellow
 ---
@@ -34,7 +35,7 @@ When analyzing code, you will:
    - Config layers for values that never vary across environments or callers
    - For each finding, verify by grepping for all implementations/subclasses before flagging
 
-3. **Analysis Methodology**:
+4. **Analysis Methodology**:
    - Start by mapping all function definitions in the given scope
    - Trace all imports and function calls throughout the codebase
    - Use AST analysis when possible for accurate detection

@@ -51,8 +51,8 @@ Execute these phases sequentially. Get user approval before advancing.
 
 ### Phase 2: Progressive Discovery
 
-Ask questions one at a time to build understanding. Start broad, go deep
-where complexity lives.
+Ask questions in small, adaptive rounds to build understanding. Start broad,
+go deep where complexity lives.
 
 **Question flow — adapt, don't checklist-walk:**
 
@@ -88,7 +88,9 @@ Then explore based on what the answers reveal:
 - Availability and latency expectations?
 
 **Rules for questioning:**
-- **One question at a time.** Never batch multiple questions in one message.
+- **Small batches via AskUserQuestion.** Group 2-4 tightly related questions
+  per round (the tool renders them cleanly) — never dump all categories at
+  once. Each round's answers shape the next round.
 - **Multiple choice when possible** — easier to answer than open-ended.
 - **Skip what's answered** — if the initial description covers it, don't re-ask.
 - **Progressive depth** — start broad, dig deeper only where answers reveal

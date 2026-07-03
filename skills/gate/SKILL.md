@@ -9,7 +9,7 @@ description: >
   running /ship-it. Do NOT use for in-progress work — this is a final checkpoint.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Gate — Pre-Ship Quality Gate
@@ -44,18 +44,25 @@ bash "<skill-dir>/scripts/preflight.sh"
 ```
 
 This checks:
-- Current branch and base branch
-- Changes exist (vs base branch)
+- Default branch (origin/HEAD → main → master) and current branch
+- Changes exist — full diff vs merge-base written to `/tmp/gate-diff.txt`,
+  file list to `/tmp/gate-files.txt` (via the shared `git-scope.sh`)
 - Virtual environment is active
-- No secrets in changed files
-- Diff size summary
+- Secrets: sensitive filenames AND added lines that look like hardcoded
+  credentials
+- Recent commit style
 
-**If no changes exist**, stop: "Nothing to gate — no changes found."
+**If no changes exist**, the script exits 1 — stop: "Nothing to gate."
 
 **If venv is not active**, report as WARNING (not a blocker) with the
 activation hint from preflight output.
 
-**If secrets detected**, report as BLOCKER — list the files and stop.
+**If sensitive filenames are detected**, report as BLOCKER — list the files
+and stop.
+
+**If suspicious added lines are flagged**, read those lines in the diff and
+judge: a real credential is a BLOCKER; a false positive (test fixture,
+variable name, pattern definition) gets noted as such and does not block.
 
 Present the preflight summary before proceeding:
 
@@ -63,7 +70,7 @@ Present the preflight summary before proceeding:
 ## Preflight
 - Branch: feature-x (base: main)
 - Venv: active (.venv)
-- Changes: 4 files, +120 -45
+- Changes: 4 files, 165 changed lines
 - Secrets: none detected
 ```
 
@@ -78,7 +85,8 @@ The scope comes from one of (in priority order):
 2. **Conversation context** — the task discussed in this session
 3. **Branch name** — infer from branch name (e.g., `fix-retry-logic`
    suggests retry-related files)
-4. **Commit messages** — `git log main..HEAD --oneline` to infer intent
+4. **Commit messages** — `git log <base>..HEAD --oneline` to infer intent
+   (base branch from the preflight output)
 
 If scope cannot be determined, ask: "What's this change supposed to do?
 I need to know the intent to validate scope."
@@ -130,7 +138,8 @@ Use the Agent tool to launch these two agents **in parallel** with
 Analyze the code changes on branch `<branch>` compared to `<base>`.
 Focus on: bugs, logic errors, security issues, missing error handling.
 Scope to ONLY these files: [list from preflight]
-Run `git diff <base>` to see the diff.
+The full diff is at /tmp/gate-diff.txt — read it; do NOT re-run git diff.
+Read source files for surrounding context as needed.
 Classify findings as: Critical, Major, Minor, Nit.
 ```
 
@@ -140,7 +149,8 @@ Hunt for real, triggerable bugs in the changes on branch `<branch>`
 compared to `<base>`. NOT style issues — only bugs that could cause
 failures, data corruption, or silent wrong behavior.
 Scope to ONLY these files: [list from preflight]
-Run `git diff <base>` to see the diff.
+The full diff is at /tmp/gate-diff.txt — read it; do NOT re-run git diff.
+Read source files for surrounding context as needed.
 For each bug, explain: what triggers it, what happens, how to fix it.
 ```
 

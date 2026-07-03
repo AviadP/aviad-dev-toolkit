@@ -1,38 +1,47 @@
 ---
 name: code-quality
 description: >
-  Run parallel code quality agents (code review, simplifier, dead code detector,
-  cleanup, best practices) on branch changes. Use when user says "check code quality",
+  Run parallel code quality agents (code review, simplifier & structure,
+  dead code & dev artifacts) on branch changes. Use when user says "check code quality",
   "review my changes", "run quality check", "is my code ready", or when finishing a
   feature, before committing, or before creating a PR. Do NOT use for reviewing
   a single file in isolation or for existing code that hasn't changed.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Code Quality — Parallel Multi-Agent Review
 
 ## Overview
 
-Launches 5 specialized code quality agents **in parallel** against the current branch changes (compared to master). Collects results and presents a single consolidated report with prioritized, deduplicated findings.
+Reviews current branch changes (vs the default branch) through 3 specialized
+agents running **in parallel**, then presents a single consolidated report
+with prioritized, deduplicated findings. Small diffs skip the agents and get
+a cheaper single-pass review.
 
 ## Invocation
 
 ```
-/code-quality              # Review all unstaged + untracked changes vs master
+/code-quality              # Review all branch + working-tree changes vs default branch
 /code-quality <files>      # Focus on specific files
+/code-quality --deep       # Force agents even for a small diff
 ```
 
 ## Agents
 
-| Agent | Type | Purpose |
-|-------|------|---------|
-| Code Reviewer | `pr-review-toolkit:code-reviewer` | Bugs, logic errors, security, conventions |
-| Code Simplifier | `branch-code-simplifier` | Complexity reduction, duplication, simplification |
-| Dead Code Detector | `dead-code-detector` | Unused functions, imports, locators, constants |
-| Post-Dev Cleanup | `code-cleanup-post-dev` | Debug logs, TODO comments, dev artifacts |
-| Best Practices | `code-best-practices-reviewer` | Coupling, cohesion, naming, error handling, CLAUDE.md compliance |
+Each agent's task prompt extends its base focus with an absorbed area, so 3
+agents cover what 5 did before:
+
+| Agent | Type | Focus (base + absorbed) |
+|-------|------|-------------------------|
+| Code Reviewer | `pr-review-toolkit:code-reviewer` | Bugs, logic errors, security, CLAUDE.md/convention compliance |
+| Simplifier & Structure | `branch-code-simplifier` | Complexity, duplication, over-engineering + coupling/cohesion, naming, error-handling patterns |
+| Cruft Detector | `dead-code-detector` | Unused functions/imports/constants + dev artifacts: debug logs, TODO leftovers, commented-out code |
+
+(`code-best-practices-reviewer` is folded into Simplifier & Structure and
+`code-cleanup-post-dev` into Cruft Detector; both remain available as
+standalone agents.)
 
 ## Severity Levels
 
@@ -48,21 +57,42 @@ step must use the same definitions.
 
 ## Instructions
 
-When the user invokes this skill:
-
 ### Step 1: Identify scope
 
-Run `git diff master --stat` and `git status --short` to identify all changed and untracked files. If the user provided specific files, scope to those.
+Run the shared scope script:
 
-### Step 2: Launch all 5 agents in parallel
+```bash
+bash "<skill-dir>/../../scripts/git-scope.sh" code-quality
+```
 
-Use the Task tool to launch **all 5 agents simultaneously in a single message** with `run_in_background: true`. Each agent gets a prompt like:
+It detects the default branch (origin/HEAD → main → master), writes the full
+diff (untracked files included as new-file diffs) to
+`/tmp/code-quality-diff.txt` and the file list to
+`/tmp/code-quality-files.txt`, and recommends a mode by diff size.
+If the user provided specific files, scope the review to those.
+If there are no changes, inform the user and stop.
+
+### Step 2: Pick depth
+
+- Script recommends quick (< 200 changed lines) and the user did not pass
+  `--deep` → **single-pass review**: read the diff yourself, review it against
+  all three focus areas from the Agents table using the severity definitions,
+  then jump to Step 4. Tell the user agents were skipped (re-run with
+  `--deep` to force them).
+- Otherwise → launch agents (Step 3).
+
+### Step 3: Launch all 3 agents in parallel
+
+Use the Agent tool to launch **all 3 agents simultaneously in a single
+message** with `run_in_background: true`. Each agent gets a prompt like:
 
 ```
-Analyze the code changes on branch `<branch>` compared to `master`.
-[Agent-specific focus area].
-The changes are across these files: [list files].
-Run `git diff master` to see the full diff.
+Analyze the code changes on branch `<branch>` compared to `<default branch>`.
+[Agent-specific focus, including the absorbed areas from the Agents table.]
+The full diff is at /tmp/code-quality-diff.txt (untracked files appear as
+new-file diffs). Changed files:
+<contents of /tmp/code-quality-files.txt>
+Read source files for surrounding context as needed — do NOT re-run git diff.
 Classify each finding as: Critical, Major, Minor, or Nit.
 - Critical: security, data loss, crash, race condition
 - Major: logic error, missing validation, performance, missing tests
@@ -70,15 +100,12 @@ Classify each finding as: Critical, Major, Minor, or Nit.
 - Nit: naming, formatting, alternative approaches
 ```
 
-For untracked files, mention them explicitly so agents read them directly.
-
-### Step 3: Collect results
-
-Wait for all agents using `TaskOutput` with `block: true`. If an agent fails (model error, timeout), note it and continue with the others.
+Collect results with `TaskOutput` (`block: true`). If an agent fails (model
+error, timeout), note it and continue with the others.
 
 ### Step 4: Consolidate and deduplicate
 
-Many agents will flag the same issues. Consolidate into a single report:
+Multiple agents may flag the same issues. Consolidate into a single report:
 
 1. **Deduplicate** — if multiple agents flag the same issue, list it once with all agent sources
 2. **Prioritize** — rank by severity: Critical > Major > Minor > Nit
@@ -135,50 +162,15 @@ Then wait for user response before making any changes.
 - **Be concise** — the consolidated report should be scannable in under 30 seconds
 - **Credit agents** — note which agent(s) found each issue for transparency
 
-## Example
-
-```
-User: /code-quality
-
-Agent: [Runs git diff master --stat, identifies 6 changed files]
-       [Launches 5 agents in parallel with run_in_background: true]
-       [Collects all results]
-       [Deduplicates and consolidates]
-
-       ## Consolidated Code Quality Report
-
-       ### Critical (must fix)
-       (none)
-
-       ### Major (should fix)
-       | # | File | Issue | Source |
-       |---|------|-------|--------|
-       | 1 | views.py:2543 | Unused locator `foo_bar` — dead code path | Dead code, Simplifier |
-
-       ### Minor (nice to fix)
-       | # | File | Issue | Source |
-       |---|------|-------|--------|
-       | 2 | utils.py:88 | Missing type hints on `parse_config()` | Best practices |
-
-       ### Nit (optional)
-       - utils.py:92 — consider renaming `d` to `config_data` (Simplifier)
-
-       ### Already Good
-       - Clean abstraction with mapping dict
-       - Backward-compatible defaults
-
-       Which items would you like me to fix? I recommend #1 (dead code is noise for future readers).
-```
-
 ## Troubleshooting
 
 Error: Agent fails or times out
 Cause: Model error, context limit, or network issue during parallel execution
 Solution: Note the failed agent in the report, continue with results from the remaining agents
 
-Error: No changes found on branch
-Cause: Branch is identical to master or all changes are committed and merged
-Solution: Inform the user there are no changes to review, suggest checking the correct branch
+Error: Scope script reports no changes
+Cause: Branch is identical to the default branch and the working tree is clean
+Solution: Inform the user there is nothing to review, suggest checking the correct branch
 
 Error: Too many changed files for agents to process
 Cause: Large feature branch with extensive changes

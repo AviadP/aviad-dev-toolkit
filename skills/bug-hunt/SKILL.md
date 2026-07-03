@@ -4,23 +4,27 @@ description: >
   Hunt for real, triggerable bugs in your code using parallel specialized agents
   with validation. Three hunting agents (pattern hunter, logic analyzer,
   contract checker) run in parallel, then a validator/simulator agent filters
-  findings through a 3-question kill gate and confidence scoring.
+  findings through a 3-question kill gate and confidence scoring. Small diffs
+  get a cheaper single-pass quick mode instead of agents.
   Use when user says "hunt bugs", "find bugs", "bug hunt", "check for bugs",
   "what bugs are hiding", or wants proactive bug detection beyond code review.
   Do NOT use for security-focused review (use secure-code-reviewer),
   code quality/style (use code-quality), or debugging known failures (use debug).
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
-# Bug Hunt — Multi-Agent Bug Detection with Validation
+# Bug Hunt — Adaptive Bug Detection with Validation
 
 ## Overview
 
-Hunts for real, triggerable bugs using 3 hunting agents in parallel, followed
-by a validator/simulator that filters out theoretical findings and scores
-survivors by confidence and severity.
+Hunts for real, triggerable bugs through three lenses — patterns, logic,
+contracts — then validates every finding with a kill gate that filters out
+anything theoretical. Depth is adaptive:
+
+- **Quick mode** (small diffs): single-pass hunt in the main session, no agents
+- **Deep mode** (large diffs): 3 hunting agents in parallel + validator agent
 
 Core principle:
 > "Can this bug be triggered RIGHT NOW, through a realistic code path, with
@@ -29,43 +33,51 @@ Core principle:
 ## Invocation
 
 ```
-/bug-hunt                    # Hunt in all branch changes vs master
-/bug-hunt <files>            # Hunt in specific files
-/bug-hunt <directory>        # Hunt in a specific directory
+/bug-hunt                    # Hunt in branch changes vs the default branch
+/bug-hunt <files|directory>  # Hunt in specific files or a directory
+/bug-hunt --quick            # Force quick mode (no agents, cheapest)
+/bug-hunt --deep             # Force deep mode (parallel agents)
 ```
 
-## Entry Gates
+## Phase 0: Scope
 
-1. **Code exists** — changed files on branch, or user-specified files/directory
-2. **Scope is clear** — if no files specified, scope = branch changes vs master
+1. **User specified files or a directory** — resolve to a concrete file list.
+   This is "explicit scope": the files are analyzed in full.
+2. **Otherwise** — run the shared scope script:
 
-## Agents
+   ```bash
+   bash "<skill-dir>/../../scripts/git-scope.sh" bug-hunt
+   ```
 
-| Agent | Phase | Prompt | Focus |
-|-------|-------|--------|-------|
-| Pattern Hunter | 1 (parallel) | `references/pattern-hunter-prompt.md` | Off-by-one, null handling, resource leaks, incorrect operators, API misuse, error handling gaps |
-| Logic Analyzer | 1 (parallel) | `references/logic-analyzer-prompt.md` | State violations, impossible/missing branches, incorrect conditions, async/concurrency issues |
-| Contract Checker | 1 (parallel) | `references/contract-checker-prompt.md` | Caller-callee mismatches, unhandled returns, wrong external API assumptions, error propagation |
-| Validator/Simulator | 2 (sequential) | `references/validator-simulator-prompt.md` | Validates findings via kill gate, scores survivors, independently simulates edge-case paths |
+   It detects the default branch (origin/HEAD → main → master), writes the
+   full diff (untracked files included as new-file diffs) to
+   `/tmp/bug-hunt-diff.txt` and the changed-file list to
+   `/tmp/bug-hunt-files.txt`, and prints a recommended mode by diff size.
+   If it reports no changes, inform the user and stop.
 
-## 3-Question Kill Gate
+Do NOT read the target files in this phase — reading happens once, inside
+whichever mode runs.
 
-Applied by the Validator to every finding. One "no" = kill.
+## Phase 1: Mode Selection
 
-1. **Reachable?** — Is this code path actually executed?
-   Dead code, disabled feature flags, test-only code = kill
+- User passed `--quick` or `--deep` → use it, no questions.
+- Script recommends quick (< 200 changed lines) → use quick mode; tell the
+  user in one line.
+- Otherwise → ask via AskUserQuestion: **Deep (Recommended)** — thorough,
+  4 agents, higher token cost — vs **Quick** — single-pass, cheapest.
+  For explicit scope, base the recommendation on total file size (`wc -l`).
 
-2. **Triggerable?** — Can you construct ONE concrete scenario with specific inputs?
-   Can't describe the trigger = kill
+## The Three Lenses + Validator
 
-3. **Unguarded?** — Check 5 constraint layers (all block it = kill):
-   - Defaults (schema, DB column, config, API spec)
-   - Boundary validation (input validation, API schema, CLI parsing)
-   - Type constraints (enums, non-nullable, value ranges)
-   - Caller guarantees (all call sites pre-validate)
-   - Infrastructure guards (auth middleware, rate limiters, RBAC)
+| Role | Prompt file | Focus |
+|------|-------------|-------|
+| Pattern Hunter | `references/pattern-hunter-prompt.md` | Off-by-one, null handling, resource leaks, wrong operators, API misuse, error-handling gaps |
+| Logic Analyzer | `references/logic-analyzer-prompt.md` | Incorrect conditions, missing branches, state issues, async/concurrency, control flow |
+| Contract Checker | `references/contract-checker-prompt.md` | Caller-callee mismatches, return-value mishandling, external API assumptions, data format mismatches |
+| Validator/Simulator | `references/validator-simulator-prompt.md` | 3-question kill gate (Reachable? Triggerable? Unguarded?) + independent edge-case simulation |
 
-## Confidence & Severity
+The kill gate is fully defined in the validator prompt — that file is the
+single source of truth; do not restate it. Scales used in the report:
 
 | Confidence | Meaning |
 |------------|---------|
@@ -76,55 +88,75 @@ Applied by the Validator to every finding. One "no" = kill.
 | Severity | Definition |
 |----------|-----------|
 | **Critical** | Data loss, data corruption, crash, security vulnerability, broken core functionality |
-| **Major** | Wrong results, silent incorrect behavior, performance degradation, error handling that loses context |
+| **Major** | Wrong results, silent incorrect behavior, performance degradation, lost error context |
 | **Minor** | Edge case with limited blast radius, non-critical incorrect behavior, cosmetic data issue |
 
-## Workflow
+## Scope Block (used in all agent prompts)
 
-### Phase 0: Scope Identification
+Every prompt file contains a `{SCOPE}` placeholder. Fill it with one of:
 
-1. Determine target files:
-   - If user specified files/directory: use those
-   - Otherwise: `git diff master --name-only` + `git status --short`
-2. If no files found, inform user and stop
-3. Read all target files to understand the codebase context
+**Branch scope:**
+```
+Scope: branch changes only.
+- Full diff: /tmp/bug-hunt-diff.txt — read it first; analyze ONLY added/modified code
+- Changed files:
+<contents of /tmp/bug-hunt-files.txt>
+- Repo root: <absolute path>
+```
 
-### Phase 1: Parallel Hunting (3 agents)
+**Explicit scope:**
+```
+Scope: analyze these files in full:
+<file list with absolute paths>
+```
 
-Launch all 3 hunting agents simultaneously using the Agent tool with
-`run_in_background: true`.
+## Quick Mode
 
-For each agent:
-1. Read its prompt from the corresponding `references/` file
-2. Replace `[list files]` with the actual file list
-3. Launch with `run_in_background: true`
+The main session does everything — no agents:
 
-### Phase 2: Validation & Simulation
+1. Read the three lens prompts and the validator prompt from `references/`
+   (they are small).
+2. Read the diff (or the explicit files); open surrounding source only where
+   needed to confirm callers, guards, or definitions.
+3. Hunt with all three lenses, then apply the 3-question kill gate to every
+   candidate finding yourself. Kill anything without a concrete trigger —
+   see Red Flags.
+4. Jump to Consolidation (skip the sibling scan only if nothing survived).
 
-After all Phase 1 agents complete, collect their findings and launch the
-Validator/Simulator:
+## Deep Mode
 
-1. Read `references/validator-simulator-prompt.md`
-2. Replace `[paste all findings from Phase 1]` with the collected findings
-3. For borderline findings where the kill/keep decision isn't clear-cut,
-   the Validator should consult `references/thinking-models.md`
-4. Launch the agent and wait for results
+### Hunting (parallel)
 
-### Phase 3: Consolidation
+Launch all 3 hunting agents in a SINGLE message using the Agent tool with
+`run_in_background: true`. For each agent: read its prompt file and replace
+`{SCOPE}` with the scope block above.
+
+### Validation
+
+Collect all hunter findings. Read `references/validator-simulator-prompt.md`
+and replace:
+- `{FINDINGS}` — all collected findings, labeled by source agent
+- `{SCOPE}` — the same scope block
+- `{THINKING_MODELS}` — absolute path of `<skill-dir>/../../shared/thinking-models.md`
+
+Launch the validator agent and wait for its results.
+
+## Consolidation
 
 1. **Merge** validated findings + new simulation findings
-2. **Deduplicate** — same bug found by multiple agents = list once with all sources
+2. **Deduplicate** — same bug from multiple agents = one entry, credit all sources
 3. **Sort** by Severity (Critical > Major > Minor), then Confidence (High > Medium > Low)
-4. **Apply A→B Signal Method** — if a validated bug reveals a CLASS of mistake
-   (e.g., missing null check), scan for siblings: did the developer make the
-   same mistake elsewhere in the target files? Time-box: 2 minutes max.
+4. **A→B sibling scan** — if a validated bug reveals a CLASS of mistake
+   (e.g., missing null check on API responses), grep the target files for
+   siblings and report them as "Sibling Signals" — high-confidence leads.
+   Time-box: 2 minutes; nothing found = move on.
 
-### Phase 4: Report
+## Report
 
 ```markdown
 ## Bug Hunt Report
 
-**Scope:** [files analyzed]
+**Scope:** [files analyzed] | **Mode:** Quick / Deep
 **Findings:** X validated (Y killed) | Z from simulation
 
 ### Critical
@@ -132,15 +164,13 @@ Validator/Simulator:
 |---|-----------|-----|-----------|---------|--------|
 
 ### Major
-| # | File:Line | Bug | Confidence | Trigger | Source |
-|---|-----------|-----|-----------|---------|--------|
+(same columns)
 
 ### Minor
-| # | File:Line | Bug | Confidence | Trigger | Source |
-|---|-----------|-----|-----------|---------|--------|
+(same columns)
 
 ### Sibling Signals (A→B)
-- [If a bug class was found, note other locations with the same pattern]
+- [If a bug class was found, other locations with the same pattern]
 
 ### Killed (for transparency)
 <details>
@@ -152,23 +182,11 @@ Validator/Simulator:
 </details>
 ```
 
-### Phase 5: Ask for Decision
-
 End with:
 > Which findings would you like me to investigate further or fix?
 > Recommendation: [top items with brief rationale]
 
 Wait for user response before making any changes.
-
-## The A→B Signal Method
-
-When the validator confirms a bug, ask: "Is this a one-off, or a class of mistake?"
-
-If it's a class (e.g., "missing null check on API response"), the same developer
-likely made the same mistake elsewhere. Scan the target files for siblings.
-Report them as "Sibling Signals" — high-confidence leads worth investigating.
-
-Time-box: 2 minutes on sibling scanning. Nothing found = move on.
 
 ## Guidelines
 
@@ -177,8 +195,8 @@ Time-box: 2 minutes on sibling scanning. Nothing found = move on.
 - **Concrete scenarios only** — every finding must include specific triggering inputs
 - **No style/quality overlap** — this is NOT code review. Don't report naming,
   formatting, or "better approaches"
-- **Credit sources** — note which agent(s) found each issue
-- **Respect scope** — analyze specified files or branch changes, not the entire codebase
+- **Credit sources** — note which lens/agent found each issue
+- **Respect scope** — analyze the specified files or branch changes, not the codebase
 - **Show killed findings** — collapsed, for tuning the process over time
 
 ## Red Flags
@@ -202,55 +220,6 @@ Error: Validator kills ALL findings
 Cause: Hunting agents reported theoretical/guarded bugs
 Solution: Working as intended. Report "clean" result. Don't lower the bar.
 
-Error: Too many files to analyze
-Cause: Large branch or broad directory scope
-Solution: Ask user to scope to specific files or directories
-
-## Example
-
-```
-User: /bug-hunt src/api/
-
-Agent: [Phase 0: Identifies 8 files in src/api/]
-       [Phase 1: Reads 3 agent prompts from references/, launches hunters in parallel]
-       [Collects 12 raw findings]
-       [Phase 2: Reads validator prompt, launches Validator/Simulator with all 12]
-       [Validator kills 7, validates 5, finds 1 new via simulation]
-       [Phase 3: Deduplicates, sorts, checks siblings]
-
-       ## Bug Hunt Report
-
-       **Scope:** src/api/ (8 files)
-       **Findings:** 5 validated (7 killed) | 1 from simulation
-
-       ### Critical
-       | # | File:Line | Bug | Confidence | Trigger | Source |
-       |---|-----------|-----|-----------|---------|--------|
-       | 1 | handlers.py:142 | `user_id` from path parsed as string, compared with `==` to int DB ID — always false | High | GET /api/users/42/orders → empty result | Pattern Hunter, Contract Checker |
-
-       ### Major
-       | # | File:Line | Bug | Confidence | Trigger | Source |
-       |---|-----------|-----|-----------|---------|--------|
-       | 2 | service.py:89 | Pagination uses `>=` instead of `>` — skips last page when total is exact multiple of page_size | High | 100 items, page_size=10 → items 91-100 missing | Logic Analyzer |
-
-       ### Minor
-       | # | File:Line | Bug | Confidence | Trigger | Source |
-       |---|-----------|-----|-----------|---------|--------|
-       | 3 | utils.py:55 | `parse_date` assumes UTC when no timezone — wrong for local times | Medium | "2024-01-15T10:00:00" → treated as UTC | Simulator |
-
-       ### Sibling Signals (A→B)
-       - Bug #1 (type mismatch): same string-vs-int pattern at handlers.py:198, handlers.py:267
-
-       <details>
-       <summary>7 findings killed by validation</summary>
-
-       | # | Finding | Kill Reason |
-       |---|---------|------------|
-       | K1 | Missing null check on user.email | Guarded: DB NOT NULL + API validation |
-       | K2 | Division by zero in calculate_avg | Guarded: caller validates non-empty |
-
-       </details>
-
-       Which findings would you like me to investigate or fix?
-       Recommendation: #1 (critical type mismatch) and #2 (pagination off-by-one).
-```
+Error: Scope script fails (not a git repo, no default branch)
+Cause: Running outside a git repository or unusual branch setup
+Solution: Ask the user for explicit files/directory to hunt in.

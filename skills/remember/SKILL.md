@@ -69,9 +69,13 @@ When saving, gather information from these sources (in priority order):
 
 ### 2. Git State
 ```bash
+# Default branch (origin/HEAD, falling back to main/master)
+DEFAULT=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+DEFAULT=${DEFAULT:-main}
+
 git log --oneline -20                    # Recent commits
-git log --oneline master..HEAD           # Branch commits
-git diff master --stat                   # Changed files
+git log --oneline "$DEFAULT"..HEAD       # Branch commits
+git diff "$DEFAULT" --stat               # Changed files
 git branch --show-current                # Current branch
 ```
 
@@ -83,7 +87,8 @@ git branch --show-current                # Current branch
 ### 4. GitHub PRs
 ```bash
 gh pr list --state all --search "<feature keywords>" --json number,title,state,mergedAt
-gh api repos/<owner>/<repo>/pulls/<number>/reviews   # Review comments
+# Unresolved review threads + review summaries (via review-response skill):
+bash "<plugin-root>/skills/review-response/scripts/fetch-comments.sh" <number>
 ```
 
 ### 5. Related Memory Files

@@ -1,101 +1,76 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Gate preflight — collects environment state and runs entry checks.
-# Output: structured report to stdout
+# Gate preflight — git scope (via shared git-scope.sh) + environment checks.
+# Output: structured report to stdout. Exits 1 if there is nothing to gate.
+#
+# Scope files written by git-scope.sh:
+#   /tmp/gate-diff.txt   full diff vs merge-base (untracked included)
+#   /tmp/gate-files.txt  changed file list
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+GIT_SCOPE="${SCRIPT_DIR}/../../../scripts/git-scope.sh"
 
 printf '%s\n' "# Gate Preflight Report"
 printf '\n'
 
-# --- Check 1: Git state ---
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "detached")
-DEFAULT_BRANCH="main"
-if ! git rev-parse --verify "$DEFAULT_BRANCH" &>/dev/null; then
-    DEFAULT_BRANCH="master"
-fi
-printf '%s\n' "## Branch: ${CURRENT_BRANCH} (base: ${DEFAULT_BRANCH})"
+# --- Git scope: default branch, merge-base diff, file list ---
+printf '%s\n' "## Git Scope"
+SCOPE_OUTPUT=$(bash "$GIT_SCOPE" gate)
+printf '%s\n' "$SCOPE_OUTPUT"
 
-# --- Check 2: Changes exist ---
-DIFF_STAT=$(git diff "${DEFAULT_BRANCH}" --stat 2>/dev/null || echo "")
-UNCOMMITTED=$(git status --porcelain 2>/dev/null || echo "")
-
-if [[ -z "$DIFF_STAT" && -z "$UNCOMMITTED" ]]; then
-    printf '%s\n' "## Changes: NONE"
-    printf '%s\n' "No changes found against ${DEFAULT_BRANCH}. Nothing to gate."
+if grep -q "No changes found" <<< "$SCOPE_OUTPUT"; then
+    printf '\n%s\n' "Nothing to gate."
     exit 1
 fi
 
-printf '%s\n' "## Changes vs ${DEFAULT_BRANCH}"
-printf '%s\n' '```'
-echo "$DIFF_STAT"
-printf '%s\n' '```'
-
-if [[ -n "$UNCOMMITTED" ]]; then
-    printf '\n%s\n' "## Uncommitted Changes"
-    printf '%s\n' '```'
-    echo "$UNCOMMITTED"
-    printf '%s\n' '```'
-fi
-
-# --- Check 3: Changed files list ---
 printf '\n%s\n' "## Changed Files"
-CHANGED_FILES=$(git diff "${DEFAULT_BRANCH}" --name-only 2>/dev/null || echo "")
-UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null || echo "")
+cat /tmp/gate-files.txt
 
-if [[ -n "$CHANGED_FILES" ]]; then
-    echo "$CHANGED_FILES"
-fi
-if [[ -n "$UNTRACKED" ]]; then
-    printf '\n%s\n' "### Untracked"
-    echo "$UNTRACKED"
-fi
-
-# --- Check 4: Venv status ---
+# --- Venv status ---
 printf '\n%s\n' "## Virtual Environment"
 if [[ -n "${VIRTUAL_ENV:-}" ]]; then
     printf '%s\n' "Active: ${VIRTUAL_ENV}"
 else
     printf '%s\n' "WARNING: No virtual environment active"
-    # Check if activate alias exists
-    if type activate &>/dev/null 2>&1; then
-        printf '%s\n' "Hint: 'activate' alias is available — run it before committing"
-    elif [[ -f ".venv/bin/activate" ]]; then
+    if [[ -f ".venv/bin/activate" ]]; then
         printf '%s\n' "Hint: .venv found — source .venv/bin/activate"
     fi
 fi
 
-# --- Check 5: Diff size ---
-printf '\n%s\n' "## Diff Summary"
-ADDITIONS=$(git diff "${DEFAULT_BRANCH}" --numstat 2>/dev/null | awk '{s+=$1} END {print s+0}')
-DELETIONS=$(git diff "${DEFAULT_BRANCH}" --numstat 2>/dev/null | awk '{s+=$2} END {print s+0}')
-FILE_COUNT=$(echo "$CHANGED_FILES" | grep -c . 2>/dev/null || echo "0")
-printf '%s\n' "Files: ${FILE_COUNT} | +${ADDITIONS} -${DELETIONS}"
-
-# --- Check 6: Secrets scan ---
+# --- Secrets scan 1: sensitive filenames ---
 printf '\n%s\n' "## Secrets Scan"
 SECRET_FILES=""
-ALL_FILES=$(echo -e "${CHANGED_FILES}\n${UNTRACKED}" | sort -u)
 while IFS= read -r file; do
+    file="${file%"  [untracked]"}"
     [[ -z "$file" ]] && continue
     case "$file" in
         .env|.env.*|*.key|*.pem|credentials*|*secret*|*.p12|*.pfx)
-            SECRET_FILES="${SECRET_FILES}${file}\n"
+            SECRET_FILES="${SECRET_FILES}  - ${file}"$'\n'
             ;;
     esac
-done <<< "$ALL_FILES"
+done < /tmp/gate-files.txt
 
-if [[ -n "$SECRET_FILES" ]]; then
+# --- Secrets scan 2: hardcoded credentials in added lines ---
+# Flags added lines that assign a quoted literal (8+ chars) to a
+# key/password-style variable name
+SECRET_PATTERN="^\+.*(api[_-]?key|apikey|password|passwd|secret|token)[^=:]{0,3}[:=][[:space:]]*['\"][^'\"]{8,}"
+SECRET_LINES=$(grep -inE "$SECRET_PATTERN" /tmp/gate-diff.txt | head -10 || true)
+
+if [[ -n "$SECRET_FILES" || -n "$SECRET_LINES" ]]; then
     printf '%s\n' "WARNING: Potential secrets detected:"
-    printf "$SECRET_FILES"
+    if [[ -n "$SECRET_FILES" ]]; then
+        printf '%s\n' "Sensitive filenames:"
+        printf '%s' "$SECRET_FILES"
+    fi
+    if [[ -n "$SECRET_LINES" ]]; then
+        printf '%s\n' "Added lines that look like hardcoded credentials (diff-file line numbers):"
+        printf '%s\n' "$SECRET_LINES"
+    fi
 else
     printf '%s\n' "No secrets detected"
 fi
 
-# --- Check 7: Recent commits for style ---
+# --- Recent commits for style ---
 printf '\n%s\n' "## Recent Commit Style"
 git log --oneline -5 2>/dev/null || echo "(no commits)"
-
-printf '\n%s\n' "## Diff Preview (first 80 lines)"
-printf '%s\n' '```diff'
-git diff "${DEFAULT_BRANCH}" 2>/dev/null | head -80
-printf '%s\n' '```'

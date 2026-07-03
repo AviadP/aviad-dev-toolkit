@@ -9,7 +9,7 @@ description: >
   feedback to act on.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Review Response — Handle Incoming Code Review Feedback
@@ -43,7 +43,7 @@ input to evaluate, not orders to execute.
 Before the workflow can execute, verify:
 
 1. **Feedback exists** — the user must provide review feedback from one of:
-   - A GitHub PR number (fetched via `gh pr view` and `gh api`)
+   - A GitHub PR number or URL (fetched via `scripts/fetch-comments.sh`)
    - Pasted review comments
    - Feedback described in conversation
    If no feedback source is available, stop: "I need review feedback to
@@ -59,13 +59,19 @@ Before the workflow can execute, verify:
 
 ### Step 1: Gather All Feedback
 
-Collect all review comments and organize them:
+For GitHub PRs, run the fetch script:
 
-- For GitHub PRs: use `gh api repos/{owner}/{repo}/pulls/{number}/comments`
-  and `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
-- Group by file and line number
-- Identify the reviewer for each comment
-- Note which comments are threads vs standalone
+```bash
+bash "<skill-dir>/scripts/fetch-comments.sh" "<PR_NUMBER_OR_URL>"
+```
+
+It returns only actionable feedback as numbered markdown: **unresolved**
+review threads (resolved threads are filtered out via GraphQL — the REST
+API can't do this), review summaries, and conversation comments. Ignore
+bot/CI noise (e.g., coverage bots) unless it flags a real problem.
+
+For pasted or described feedback, skip the script and organize what was
+given by file and line.
 
 Present the gathered feedback:
 
@@ -215,7 +221,7 @@ These thoughts mean you're skipping verification:
 ```
 User: /review-response 1234
 
-Agent: [Fetches comments via gh api]
+Agent: [Runs scripts/fetch-comments.sh — gets unresolved threads only]
        [Classifies 5 comments: 2 bugs, 2 suggestions, 1 question]
        [Verifies each against codebase]
        [Finding: 1 bug valid, 1 bug invalid, both suggestions valid, question needs answer]

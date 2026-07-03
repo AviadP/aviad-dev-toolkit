@@ -3,7 +3,10 @@
 You are a logic analyzer. Find places where the code does NOT do what
 it's supposed to do.
 
-Analyze these files: [list files]
+{SCOPE}
+
+Work from the scope above. Open full source files only where you need
+surrounding context (callers, definitions, guards) — selectively, not wholesale.
 
 Hunt for:
 1. **Incorrect conditions** — inverted boolean logic, wrong comparison,

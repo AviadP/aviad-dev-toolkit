@@ -38,17 +38,22 @@ Execute these phases sequentially. Get user approval before advancing to the nex
    - Ask adaptive clarifying questions focused on what's needed for
      architecture decisions: scale expectations, team size and skills,
      technology mandates, compliance requirements, greenfield vs. existing systems.
-   - **Ask one question at a time.** Prefer multiple choice. Skip questions
-     the user already answered. Start broad, dig deeper only where answers
-     reveal complexity.
+   - **Batch 2-4 tightly related questions per round via AskUserQuestion**
+     (e.g., scale + team size + timeline in one round). Prefer multiple
+     choice. Skip questions the user already answered. Keep rounds adaptive:
+     start broad, dig deeper only where answers reveal complexity.
    - For thorough product-level requirements gathering, suggest running
      `/discover` first.
 
 ### Phase 2: Tech Stack Selection
 
 1. Ask the user about technology preferences and team experience
-2. Research current best practices using WebSearch for the specific domain
-3. Read `references/tech-stacks.md` for comparison data
+2. Read `references/tech-stacks.md` for comparison data — note its
+   "Last updated" date
+3. Use WebSearch only when it adds signal: the stack choice is contentious,
+   the tech is fast-moving or post-dates the reference file, or the domain
+   is unfamiliar. For well-trodden stacks, the reference file is enough.
+   Where search results conflict with the file, trust the search.
 4. Present 2-3 viable stack options as a comparison table:
 
 ```

@@ -1,6 +1,6 @@
 ---
 name: secure-code-reviewer
-description: "Use this agent to scan code for security vulnerabilities across 11 categories derived from real-world AI-exploited breaches, plus OWASP Top 10 patterns and dependency CVE checks. Use when the user wants a security review of code, dependency audit, or pre-deployment security scan.\n\nExamples:\n<example>\nContext: The user has completed implementing an API endpoint.\nuser: \"I just finished the file upload API, can you check it for security issues?\"\nassistant: \"I'll use the secure-code-reviewer agent to scan the file upload API for security vulnerabilities.\"\n<commentary>\nSince the user wants a security-focused review of their code, use the Task tool to launch the secure-code-reviewer agent.\n</commentary>\n</example>\n<example>\nContext: The user wants to verify their auth module is secure before shipping.\nuser: \"Before we ship the auth module, please do a security scan\"\nassistant: \"Let me use the secure-code-reviewer agent to perform a security audit of the authentication module.\"\n<commentary>\nThe user needs a security audit before shipping, so use the secure-code-reviewer agent.\n</commentary>\n</example>\n<example>\nContext: After adding dependency packages, user wants to check for known vulnerabilities.\nuser: \"I added several new npm packages, can you check if they have any known CVEs?\"\nassistant: \"I'll use the secure-code-reviewer agent to audit your dependencies for known vulnerabilities.\"\n<commentary>\nThe user needs a dependency security check, so use the secure-code-reviewer agent which includes package/CVE scanning.\n</commentary>\n</example>"
+description: "Use this agent to scan code for security vulnerabilities across 11 categories derived from real-world AI-exploited breaches, plus OWASP Top 10 patterns and dependency CVE checks. Use when the user wants a security review of code, dependency audit, or pre-deployment security scan.\n\nExamples:\n<example>\nContext: The user has completed implementing an API endpoint.\nuser: \"I just finished the file upload API, can you check it for security issues?\"\nassistant: \"I'll use the secure-code-reviewer agent to scan the file upload API for security vulnerabilities.\"\n<commentary>\nSince the user wants a security-focused review of their code, use the Agent tool to launch the secure-code-reviewer agent.\n</commentary>\n</example>\n<example>\nContext: The user wants to verify their auth module is secure before shipping.\nuser: \"Before we ship the auth module, please do a security scan\"\nassistant: \"Let me use the secure-code-reviewer agent to perform a security audit of the authentication module.\"\n<commentary>\nThe user needs a security audit before shipping, so use the secure-code-reviewer agent.\n</commentary>\n</example>\n<example>\nContext: After adding dependency packages, user wants to check for known vulnerabilities.\nuser: \"I added several new npm packages, can you check if they have any known CVEs?\"\nassistant: \"I'll use the secure-code-reviewer agent to audit your dependencies for known vulnerabilities.\"\n<commentary>\nThe user needs a dependency security check, so use the secure-code-reviewer agent which includes package/CVE scanning.\n</commentary>\n</example>"
 tools: Bash, Glob, Grep, LS, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash
 model: inherit
 color: red
@@ -26,6 +26,10 @@ flag it as "Needs Manual Review" with your reasoning.
 7. **Generate report** in the output format below
 
 ## Vulnerability Categories
+
+(The same 11-category taxonomy exists at design level in
+`skills/secure-plan/references/vulnerability-categories.md` — if you change
+categories here, keep that file's numbering aligned.)
 
 ### 1. Authentication and Authorization Bypass
 

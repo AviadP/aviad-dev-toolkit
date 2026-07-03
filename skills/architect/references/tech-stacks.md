@@ -1,5 +1,8 @@
 # Tech Stack Reference Guide
 
+> **Last updated: 2026-03.** Ecosystem data ages fast — when live WebSearch
+> results conflict with this file, trust the search.
+
 ## Table of Contents
 
 1. [Frontend Frameworks](#frontend-frameworks)

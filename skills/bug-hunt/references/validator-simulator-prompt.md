@@ -2,10 +2,12 @@
 
 You are a bug validator and execution simulator. You have two jobs.
 
+{SCOPE}
+
 ## Job 1: Validate Findings
 
 These findings were reported by hunting agents:
-[paste all findings from Phase 1]
+{FINDINGS}
 
 For EACH finding, apply the 3-Question Kill Gate:
 
@@ -39,6 +41,9 @@ edge-case inputs:
 
 Trace each through the code path. If you find a bug the hunting agents
 missed, report it with the same format.
+
+For borderline kill/keep decisions, consult the thinking-models reference
+at: {THINKING_MODELS}
 
 ## Output Format
 

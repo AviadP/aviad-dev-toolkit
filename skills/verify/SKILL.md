@@ -10,7 +10,7 @@ description: >
   code-quality for those.
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Verify — Post-Implementation Adherence Check
@@ -50,7 +50,10 @@ Before the workflow can execute, verify:
    If no requirements source is available, stop: "I need something to verify
    against. Provide a spec file, ticket ID, or describe the requirements."
 2. **Implementation exists** — there must be code changes to verify. Run
-   `git diff main --stat` to confirm changes exist. If no changes, stop:
+   the shared scope script to confirm and capture them:
+   `bash "<skill-dir>/../../scripts/git-scope.sh" verify`
+   (detects the default branch, writes `/tmp/verify-diff.txt` and
+   `/tmp/verify-files.txt`). If it reports no changes, stop:
    "No implementation found to verify."
 3. **Requirements have testable criteria** — the requirements must contain
    at least one concrete, verifiable criterion. If the requirements are
@@ -85,7 +88,8 @@ the list before proceeding.
 For each criterion, search the implementation to find the code that
 addresses it:
 
-- Use `git diff main` to identify all changed files
+- Use the scope files from the entry gate: `/tmp/verify-files.txt` for the
+  changed-file list, `/tmp/verify-diff.txt` for the full diff
 - Read each changed file and map logic to criteria
 - Use Grep to find relevant patterns, function names, test assertions
 - Note criteria with no matching code
@@ -276,4 +280,4 @@ Solution: Ask the user to break requirements into specific, testable acceptance 
 
 Error: Implementation spans many files
 Cause: Large feature with changes across 20+ files
-Solution: Focus on files changed in this branch (`git diff main --stat`), verify criteria systematically rather than reading every file
+Solution: Focus on files changed in this branch (`/tmp/verify-files.txt` from the scope script), verify criteria systematically rather than reading every file

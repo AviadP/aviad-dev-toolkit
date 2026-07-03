@@ -11,7 +11,7 @@ description: >
   code-quality for that).
 metadata:
   author: Aviad Polak
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # PR Review
@@ -52,14 +52,19 @@ Check the **Purpose Validation** section. If the severity is not PASS, include t
 | Title is OK but no description | 🟡 MEDIUM |
 | Everything clear | ✅ Pass (no finding) |
 
-## Phase 3: Mode Selection
+## Phase 2: Mode Selection
 
-Ask the user which review depth to use (via AskUserQuestion):
+If the user already specified a depth in their request ("quick review",
+"deep review", `--quick`, `--deep`), use it without asking.
+
+Otherwise read the **Recommended Mode** section from
+`/tmp/pr-review-context.md` and ask via AskUserQuestion, putting the
+recommended option first with "(Recommended)" in its label:
 
 - **Quick** — Single-pass review, no sub-agents. Best for: small fixes, docs changes, simple refactors, config updates.
 - **Deep** — Parallel hunter agents + kill-gate validation. Best for: new features, security-sensitive changes, complex refactors, fundamental architecture changes.
 
-## Phase 4a: Quick Mode
+## Phase 3a: Quick Mode
 
 The skill itself performs the review — no agents spawned.
 
@@ -111,9 +116,9 @@ Apply these gates to every potential finding before including it:
 - **Pattern gate:** Does the project already use this pattern elsewhere? If so, don't flag it — the PR is being consistent.
 - **Intent gate:** Does the PR description or code docstrings explain why this design choice was made? If so, respect the author's intent unless it introduces a real bug.
 
-After the review, jump to Phase 5 (Report).
+After the review, jump to Phase 4 (Report).
 
-## Phase 4b: Deep Mode
+## Phase 3b: Deep Mode
 
 ### Step 1: Build Shared Context
 
@@ -129,6 +134,7 @@ Project Conventions: <key sections from CLAUDE.md if loaded, otherwise "None">
 Working Directory: <WORK_DIR>
 Diff file: /tmp/pr-review-diff.txt
 Changed files: <list from --stat>
+Dependency check script: <absolute path of <skill-dir>/../../scripts/check-deps.sh>
 ```
 
 ### Step 2: Launch Hunter Agents
@@ -159,11 +165,13 @@ If an agent failed, note the failure and continue with results from the others.
 
 ### Step 4: Kill-Gate Validation
 
-Read `references/kill-gate.md`. Launch a validator agent with:
-- All findings from Step 3 (combined, labeled by source agent)
-- Working directory: `$WORK_DIR`
-- Diff file: `/tmp/pr-review-diff.txt`
-- For borderline decisions: instruct the validator to read `references/thinking-models.md`
+Read `references/kill-gate.md` and fill its placeholders:
+- `{FINDINGS}` — all findings from Step 3 (combined, labeled by source agent)
+- `{WORK_DIR}` — the working directory
+- `{THINKING_MODELS}` — absolute path of `<skill-dir>/../../shared/thinking-models.md`
+  (used for borderline kill/keep decisions)
+
+Launch the validator agent with the filled prompt.
 
 **IMPORTANT:** Findings that are "Rules Violation" (from `review-rules.md`) bypass the kill-gate entirely. They are always reported as BLOCKER.
 
@@ -180,9 +188,9 @@ If multiple agents flagged the same issue (same file, same or adjacent lines, sa
 - Use the highest severity rating among the agents
 - Use the most concrete trigger scenario
 
-After deduplication, jump to Phase 5 (Report).
+After deduplication, jump to Phase 4 (Report).
 
-## Phase 5: Report
+## Phase 4: Report
 
 Format the output identically for both quick and deep modes.
 
@@ -238,7 +246,7 @@ If a severity tier has zero findings, omit that section entirely.
 </details>
 ```
 
-## Phase 6: Cleanup
+## Phase 5: Cleanup
 
 After presenting the report, clean up the temporary workspace:
 

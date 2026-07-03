@@ -60,7 +60,9 @@ Check the diff against these categories (derived from real-world breaches):
 - Missing Secure, HttpOnly, SameSite cookie attributes
 
 ### 7. Dependency Security
-- New packages added — check for known CVEs via audit tools
+- New packages added — check each one with the dependency check script from
+  the context: `bash <script> <ecosystem> <package>...` (returns known OSV
+  vulnerability IDs + latest release date; no web searching needed)
 - Unpinned or wildcard version ranges in dependency files
 - Packages with very low adoption (typosquatting risk)
 - Deprecated or archived packages

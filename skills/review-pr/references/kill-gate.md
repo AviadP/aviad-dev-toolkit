@@ -86,7 +86,8 @@ the call chain, check what happens at each step. If you find a bug the hunting
 agents missed, report it as a NEW finding with file:line, concrete trigger, and
 severity.
 
-For borderline kill/keep decisions, consult `references/thinking-models.md`.
+For borderline kill/keep decisions, consult the thinking-models reference
+at: {THINKING_MODELS}
 
 ## Output Format
 

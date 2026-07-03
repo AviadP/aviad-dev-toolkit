@@ -8,7 +8,7 @@ description: >
   Do NOT use for code quality review (use code-quality) or plan validation (use design-validator).
 metadata:
   author: Aviad Polak
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Risk Assess — Change Impact Assessment
@@ -41,7 +41,7 @@ This skill forces that analysis before implementation.
 
 1. **Change exists** — there must be either:
    - A plan described in conversation
-   - A diff on the current branch (`git diff main --stat`)
+   - A diff on the current branch (vs the default branch)
    - A file or document describing the proposed change
    If none exist, ask: "What change should I assess? Describe the plan or
    point me to a diff."
@@ -52,11 +52,13 @@ This skill forces that analysis before implementation.
 
 ### Step 1: Identify the Change Surface
 
-Determine what is being changed and where it lives:
+Determine what is being changed and where it lives. For a branch diff, run
+the shared scope script:
 
 ```bash
-git diff main --stat               # Files touched
-git diff main --numstat            # Lines added/removed per file
+bash "<skill-dir>/../../scripts/git-scope.sh" risk-assess
+# → detects the default branch, writes /tmp/risk-assess-diff.txt
+#   and /tmp/risk-assess-files.txt
 ```
 
 If working from a plan (not a diff), list the files and functions that
@@ -76,7 +78,8 @@ Classify each changed file:
 
 ### Step 2: Measure Blast Radius
 
-For each HIGH or MEDIUM risk file, trace its dependents:
+For each HIGH or MEDIUM risk file, trace its dependents (globs below are
+Python — adjust to the project's language):
 
 1. **Import graph** — who imports this module?
    ```bash
